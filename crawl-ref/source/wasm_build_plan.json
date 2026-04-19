@@ -1,0 +1,223 @@
+{
+  "build_target": "WebAssembly/Emscripten",
+  "game_variant": "ASCII/Console",
+  "summary": "DCSS ASCII build for WebAssembly via Emscripten, focusing on console-only rendering without SDL/tiles",
+
+  "compiler": {
+    "emcc_version_min": "2.0.0",
+    "cxx_standard": "c++11",
+    "base_command": "emcc",
+    "example_flags": "-s WASM=1 -s USE_WEBGL2=0 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=268435456 -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap']"
+  },
+
+  "preprocessor_defines": {
+    "required": [
+      "-D__EMSCRIPTEN__=1",
+      "-DTARGET_OS_LINUX=1",
+      "-DUNIX=1",
+      "-DUSE_UNIX_SIGNALS=1",
+      "-DREGEX_POSIX=1",
+      "-DUSE_SQLITE_DBM=1",
+      "-DCURSES_INCLUDE_FILE=curses_include_fix",
+      "-DCURSES_USE_KEYPAD=1"
+    ],
+    "optional": [
+      "-DCLUA_BINDINGS=1",
+      "-DDISABLE_SAVEGAME_LISTS=1",
+      "-DNO_TRY_LLD=1",
+      "-DNO_TRY_GOLD=1"
+    ],
+    "to_disable": [
+      "-DUSE_TILE",
+      "-DUSE_TILE_WEB",
+      "-DUSE_TILE_LOCAL",
+      "-DUSE_SOUND",
+      "-DSOUND"
+    ]
+  },
+
+  "external_dependencies": {
+    "lua": {
+      "status": "required",
+      "location": "contrib/lua (INTERPRETED ONLY - NO LuaJIT)",
+      "CRITICAL_RESTRICTION": "LuaJIT is FORBIDDEN - WebAssembly cannot execute dynamically generated machine code (JIT compilation) due to browser security sandboxes. You MUST use standard interpreted C-Lua from contrib/lua, NOT contrib/luajit.",
+      "build_action": "use contrib lua (BUILD_LUA=yes). Ensure Makefile does NOT use luajit.",
+      "emscripten_notes": "Use contrib/lua (C implementation). Build as part of contrib. LuaJIT will not work in Wasm."
+    },
+    "sqlite": {
+      "status": "required",
+      "location": "USE EMSCRIPTEN BUILT-IN - DO NOT compile contrib/sqlite",
+      "build_action": "Add -s USE_SQLITE3=1 to linker flags. Bypass contrib/sqlite entirely.",
+      "emscripten_notes": "Emscripten has a highly optimized pre-compiled SQLite3 port built-in. Use -s USE_SQLITE3=1 instead of BUILD_SQLITE=yes. This avoids fighting the DCSS Makefiles to compile contrib/sqlite to Wasm."
+    },
+    "ncurses_curses": {
+      "status": "required",
+      "header": "<curses.h>",
+      "emscripten_notes": "MUST REPLACE with pdcurses or custom terminal output layer. Emscripten has no native curses support.",
+      "alternative": "Implement custom 'curses-compatible' output using JavaScript console/canvas"
+    },
+    "zlib": {
+      "status": "required",
+      "location": "contrib/zlib",
+      "build_action": "BUILD_ZLIB=yes",
+      "emscripten_notes": "Use Emscripten's built-in zlib (s拼搏orts.js includes zlib)"
+    },
+    "pcre": {
+      "status": "optional",
+      "location": "contrib/pcre",
+      "emscripten_notes": "Use POSIX regex instead (-DREGEX_POSIX) to avoid PCRE porting effort"
+    }
+  },
+
+  "os_specific_files": {
+    "exclude_from_build": [
+      "windowmanager-sdl.cc",
+      "windowmanager-sdl.h",
+      "windowmanager-sdl.d",
+      "SDLMain.h",
+      "SDLMain.m",
+      "libw32c.h",
+      "libw32c.cc",
+      "**/*w32*",
+      "**/*win32*",
+      "**/*mingw*",
+      "**/*msvc*"
+    ],
+    "include_from_build": [
+      "libunix.cc",
+      "libunix.h",
+      "platform.h",
+      "threads.h"
+    ],
+    "platform_headers": [
+      "platform.h - already handles multiple OS detection",
+      "libunix.h - UNIX-specific functions (curses wrappers)",
+      "threads.h - pthread abstraction (needs replacement for Wasm)"
+    ]
+  },
+
+  "threading_model": {
+    "current_implementation": "pthread-based (threads.h)",
+    "issue": "Emscripten's pthreads require SharedArrayBuffer which has security restrictions",
+    "recommendation": "Either: 1) Use Emscripten's -s USE_PTHREADS=1 with proper headers, or 2) Replace with single-threaded model using async/await in JS glue code",
+    "functions_to_stub_or_wrap": [
+      "pthread_mutex_t / mutex_* macros in threads.h",
+      "pthread_create / thread_t in threads.h",
+      "pthread_join in threads.h",
+      "pthread_cond_signal / cond_wake in threads.h"
+    ]
+  },
+
+  "file_io_operations": {
+    "usage_patterns": [
+      "Save files: get_save_filename(), save_dir in options.h",
+      "Level data: files.cc (save/load levels)",
+      "Lua files: l-file.cc (fopen_replace, etc.)",
+      "Debug output: xom.cc, wiz-item.cc"
+    ],
+    "emscripten_solution": "Use Emscripten's virtual filesystem (MEMFS or IDBFS)",
+    "critical_functions": [
+      "fopen_u() - user file open with path resolution",
+      "fopen_replace() - open for writing with path resolution",
+      "save_files: FILE* operations throughout codebase",
+      "get_save_filename() in files.cc",
+      "catpath() path operations"
+    ],
+    "persistent_storage": "Use Emscripten's IDBFS for IndexedDB-backed persistent saves"
+  },
+
+  "signal_handling": {
+    "current": "USE_UNIX_SIGNALS in AppHdr.h",
+    "usage": "Signal handlers for crashes in dbg-asrt.cc",
+    "issue": "Unix signals don't exist in browser environment",
+    "functions_to_stub": [
+      "signal() calls",
+      "raise() calls",
+      "SIGABRT handler",
+      "init_signals() in main.cc"
+    ],
+    "recommendation": "Wrap in #ifndef __EMSCRIPTEN__ blocks or provide JS exception handling"
+  },
+
+  "terminal_io": {
+    "current": "curses/ncurses in libunix.cc",
+    "issue": "curses library not available in Wasm browser",
+    "functions_to_wrap": [
+      "initscr() / endwin()",
+      "curs_set()",
+      "getch() / wgetch()",
+      "refresh() / wrefresh()",
+      "mvaddstr() / mvwaddstr()",
+      "attron() / attroff()",
+      "start_color() / init_pair()",
+      "keypad()"
+    ],
+    "recommended_approach": "RECOMMENDED: Use PDCurses (Public Domain Curses) which has existing Emscripten ports. ALTERNATIVE: Pipe raw character output to xterm.js on the JavaScript side. AVOID: Writing custom curses-shim.h from scratch (will take weeks).",
+    "pdcurses_notes": "PDCurses has mature Emscripten support - much faster to integrate than custom shim."
+  },
+
+  "key_files_to_modify": {
+    "appheader": {
+      "file": "AppHdr.h",
+      "changes": "Add #ifdef __EMSCRIPTEN__ blocks for platform defaults"
+    },
+    "threads": {
+      "file": "threads.h",
+      "changes": "Replace pthread with Wasm-compatible threading or stub out"
+    },
+    "libunix": {
+      "file": "libunix.cc",
+      "changes": "Major: Replace curses implementation with browser terminal shim"
+    },
+    "files": {
+      "file": "files.cc",
+      "changes": "Add wrapper for Emscripten filesystem (MEMFS/IDBFS)"
+    },
+    "main": {
+      "file": "main.cc",
+      "changes": "Handle init_signals() stub, add Emscripten main loop"
+    }
+  },
+
+  "cmake_approach": {
+    "note": "DCSS uses Makefile, not CMake. For Emscripten, create custom Makefile.emscripten",
+    "emcc_usage": "Replace $(CXX) and $(CC) with emcc/em++ in custom makefile",
+    "linker_flags": [
+      "-s WASM=1",
+      "-s INITIAL_MEMORY=268435456",
+      "-s ALLOW_MEMORY_GROWTH=1",
+      "-s USE_SQLITE3=1",
+      "-s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString']",
+      "-s NO_EXIT_RUNTIME=1",
+      "-s ASYNCIFY=1",
+      "-s ASYNCIFY_IMPORTS=['emscripten_sleep']"
+    ]
+  },
+
+  "build_steps": [
+    "1. Create Makefile.emscripten based on existing Makefile",
+    "2. Add #ifdef __EMSCRIPTEN__ guards in AppHdr.h",
+    "3. Integrate PDCurses (preferred) or create minimal curses wrapper - NOT full custom shim",
+    "4. Replace threading in threads.h with stub or emscripten_pthread_shim (or use single-threaded)",
+    "5. Add Emscripten filesystem wrappers in files.cc (MEMFS for temp, IDBFS for saves)",
+    "6. Build Lua from contrib/lua ONLY (NO luajit). Build zlib via contrib.",
+    "7. Use -s USE_SQLITE3=1 instead of compiling contrib/sqlite",
+    "8. Build with: make -f Makefile.emscripten (or invoke make with EMSCRIPTEN=1)",
+    "9. Generate HTML shell and link JavaScript glue code"
+  ],
+
+  "testing_notes": {
+    "local_dev_server": "python -m http.server",
+    "browser_requirements": "SharedArrayBuffer support requires cross-origin isolation headers",
+    "fallback": "If SharedArrayBuffer unavailable, build single-threaded (no -s USE_PTHREADS=1)"
+  },
+
+  "risks_and_notes": [
+    "curses/terminal I/O is the biggest challenge - no direct Wasm equivalent",
+    "Browser sandbox prevents direct file system access - must use Emscripten FS",
+    "Lua scripting in browser has security implications - consider sandboxing",
+    "Save game persistence requires IndexedDB via Emscripten IDBFS",
+    "Input handling needs to bridge browser keyboard events to game",
+    "No sound support in ASCII build (fine for this scope)"
+  ]
+}

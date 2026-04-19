@@ -1,0 +1,44 @@
+# Custom Emscripten Makefile Wrapper for DCSS ASCII
+# This sets the necessary environment variables and flags before calling the main Makefile.
+
+# 1. Force the compiler to Emscripten
+CC = emcc
+CXX = em++
+AR = emar
+RANLIB = emranlib
+
+# 2. Emscripten-specific flags (from the Architect's JSON)
+EMCC_FLAGS = -s WASM=1 \
+             -s INITIAL_MEMORY=268435456 \
+             -s ALLOW_MEMORY_GROWTH=1 \
+             -s USE_SQLITE3=1 \
+             -s ASYNCIFY=1 \
+             -s ASYNCIFY_IMPORTS=['emscripten_sleep'] \
+             -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString'] \
+             -s NO_EXIT_RUNTIME=1
+
+# 3. Preprocessor Defines
+DEFINES = -D__EMSCRIPTEN__=1 \
+          -DTARGET_OS_LINUX=1 \
+          -DUNIX=1 \
+          -DUSE_UNIX_SIGNALS=1 \
+          -DREGEX_POSIX=1 \
+          -DUSE_SQLITE_DBM=1 \
+          -DCURSES_USE_KEYPAD=1
+
+# 4. Disable unsupported features
+DISABLE_FLAGS = USE_TILE= USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1
+
+# 5. Build Target
+all:
+	@echo "Starting Emscripten build for DCSS ASCII..."
+	$(MAKE) -f Makefile \
+		CXX="$(CXX)" \
+		CC="$(CC)" \
+		AR="$(AR)" \
+		RANLIB="$(RANLIB)" \
+		CFOTHERS="$(EMCC_FLAGS) $(DEFINES)" \
+		LDFLAGS="$(EMCC_FLAGS)" \
+		BUILD_LUA=yes \
+		BUILD_ZLIB=yes \
+		$(DISABLE_FLAGS)
