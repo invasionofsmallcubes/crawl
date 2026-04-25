@@ -8,41 +8,57 @@ AR = emar
 RANLIB = emranlib
 
 # 2. Emscripten-specific preprocessor defines (these go to CFOTHERS for compilation)
+# -fexceptions: DCSS uses C++ exceptions (level-gen retry, etc.). emcc disables
+# them by default; must be set on BOTH compile and link.
 DEFINES = -D__EMSCRIPTEN__=1 \
           -DTARGET_OS_LINUX=1 \
           -DUNIX=1 \
           -DUSE_UNIX_SIGNALS=1 \
           -DREGEX_POSIX=1 \
           -DUSE_SQLITE_DBM=1 \
-          -DCURSES_USE_KEYPAD=1
+          -DCURSES_USE_KEYPAD=1 \
+          -DCURSES_INCLUDE_FILE=\"curses_include_fix.h\" \
+          -fexceptions
 
-# 3. Emscripten-specific linker flags (these go to LDFLAGS for linking)
-# NOTE: These are ONLY applied during the final link stage, not for host tools like rltiles
+# 3. Emscripten-specific linker flags
+# Passed via EXTERNAL_LDFLAGS (appended by the main Makefile to LDFLAGS).
+# Kept simple — no inner quotes — to avoid shell quoting issues in sub-make.
+# USE_SQLITE3=1 tells Emscripten to use its own pre-compiled SQLite3 port.
+# ASYNCIFY=1 is required for async JS input bridging (getch stubs use ASYNCIFY).
 EMCC_LDFLAGS = -s WASM=1 \
-             -s INITIAL_MEMORY=268435456 \
-             -s ALLOW_MEMORY_GROWTH=1 \
-             -s USE_SQLITE3=1 \
-             -s ASYNCIFY=1 \
-             -s ASYNCIFY_IMPORTS=['emscripten_sleep'] \
-             -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString'] \
-             -s NO_EXIT_RUNTIME=1
+               -s INITIAL_MEMORY=268435456 \
+               -s ALLOW_MEMORY_GROWTH=1 \
+               -s USE_SQLITE3=1 \
+               -s ASYNCIFY=1 \
+               -s ASYNCIFY_STACK_SIZE=4194304 \
+               -s STACK_SIZE=8388608 \
+               -s ASSERTIONS=1 \
+               -s NO_EXIT_RUNTIME=1 \
+               -fexceptions \
+               --js-library library_dcss.js \
+               --preload-file dat@/dat
 
 # 4. Disable unsupported features
-# TILES= ensures we don't build rltiles (which is tiles-only)
-# NOTE: We intentionally leave LDFLAGS empty here because it breaks rltiles sub-make
-# The actual linker flags will be set during target-specific builds
-DISABLE_FLAGS = USE_TILE= USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1 TILES= WEBTILES=
+# - TILES=/WEBTILES=/USE_TILE=/USE_SOUND= — no SDL or tile rendering in WASM ASCII build
+# - NO_NCURSES=YesPlease — suppress -lncursesw; curses stubs live in libunix.cc
+# - EXTRA_LIBS= — prevents Makefile from appending -pthread (causes --shared-memory in wasm-ld)
+# - BUILD_SQLITE= — don't compile contrib/sqlite; use Emscripten's -s USE_SQLITE3=1 instead
+DISABLE_FLAGS = USE_TILE= USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1 TILES= WEBTILES= \
+                NO_NCURSES=YesPlease \
+                EXTRA_LIBS= \
+                BUILD_SQLITE=
 
 # 5. Build Target - build only the crawl binary, not the full 'all' target
 # This avoids building rltiles which is tiles-only
 crawl:
 	@echo "Starting Emscripten build for DCSS ASCII..."
-	$(MAKE) -f Makefile \
+	$(MAKE) -f Makefile crawl \
 		CXX="$(CXX)" \
 		CC="$(CC)" \
 		AR="$(AR)" \
 		RANLIB="$(RANLIB)" \
 		CFOTHERS="$(DEFINES)" \
+		EXTERNAL_LDFLAGS="$(EMCC_LDFLAGS)" \
 		BUILD_LUA=yes \
 		BUILD_ZLIB=yes \
 		$(DISABLE_FLAGS)

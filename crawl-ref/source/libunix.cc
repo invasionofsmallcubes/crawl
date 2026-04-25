@@ -27,8 +27,10 @@
 #include <cstring>
 #include <cwchar>
 #include <langinfo.h>
+#ifndef __EMSCRIPTEN__
 #include <term.h>
 #include <termios.h>
+#endif
 #include <unistd.h>
 
 #include "colour.h"
@@ -42,8 +44,10 @@
 #include "view.h"
 #include "ui.h"
 
+#ifndef __EMSCRIPTEN__
 static struct termios def_term;
 static struct termios game_term;
+#endif
 
 #ifdef USE_UNIX_SIGNALS
 #include <signal.h>
@@ -60,14 +64,21 @@ static int headless_x = 1;
 static int headless_y = 1;
 
 // Its best if curses comes at the end (name conflicts with Solaris). -- bwr
-#ifndef CURSES_INCLUDE_FILE
-    #ifndef _XOPEN_SOURCE_EXTENDED
-    #define _XOPEN_SOURCE_EXTENDED
-    #endif
+#ifndef __EMSCRIPTEN__
+    #ifndef CURSES_INCLUDE_FILE
+        #ifndef _XOPEN_SOURCE_EXTENDED
+        #define _XOPEN_SOURCE_EXTENDED
+        #endif
 
-    #include <curses.h>
+        #include <curses.h>
+    #else
+        #include CURSES_INCLUDE_FILE
+    #endif
 #else
-    #include CURSES_INCLUDE_FILE
+    #ifdef CURSES_INCLUDE_FILE
+        #include <curses_include_fix.h>
+    #endif
+    #include <emscripten.h>
 #endif
 
 static bool _headless_mode = false;
@@ -431,6 +442,7 @@ static void setup_colour_pairs()
 
 static void unix_handle_terminal_resize();
 
+#ifndef __EMSCRIPTEN__
 static void termio_init()
 {
     tcgetattr(0, &def_term);
@@ -451,6 +463,12 @@ static void termio_init()
 
     crawl_state.terminal_resize_handler = unix_handle_terminal_resize;
 }
+#else
+static void termio_init()
+{
+    // No-op for Emscripten - terminal control not available
+}
+#endif
 
 void set_mouse_enabled(bool enabled)
 {
@@ -844,6 +862,14 @@ void console_startup()
     }
     termio_init();
 
+#ifdef __EMSCRIPTEN__
+    // WASM: only initscr() is needed — it sets up Module._dcss in JS.
+    // raw/noecho/keypad/etc. are stubbed no-ops, and intrflush/meta are
+    // ncurses macros not available here, so we skip the rest.
+    initscr();
+#endif
+
+#ifndef __EMSCRIPTEN__
 #ifdef CURSES_USE_KEYPAD
     // If hardening is enabled (default on recent distributions), glibc
     // declares write() with __attribute__((warn_unused_result)) which not
@@ -889,6 +915,7 @@ void console_startup()
 
     // Must call refresh() for ncurses to update COLS and LINES.
     refresh();
+#endif // __EMSCRIPTEN__
     crawl_view.init_geometry();
 
     // TODO: how does this relate to what tiles.resize does?
@@ -904,6 +931,7 @@ void console_shutdown()
     if (_headless_mode)
         return;
 
+#ifndef __EMSCRIPTEN__
     // resetty();
     endwin();
 
@@ -918,6 +946,7 @@ void console_shutdown()
     signal(SIGWINCH, SIG_DFL);
 # endif
 #endif
+#endif // __EMSCRIPTEN__
 }
 
 void cprintf(const char *format, ...)
@@ -1887,3 +1916,415 @@ bool kbhit()
 
     return false;
 }
+
+#ifdef __EMSCRIPTEN__
+// stdscr is declared with C++ linkage in curses_include_fix.h (line 16, before
+// the extern "C" block), so its definition must also have C++ linkage.
+static WINDOW _stdscr_impl = {0};
+WINDOW* stdscr = &_stdscr_impl;
+
+// -----------------------------------------------------------------
+// All remaining curses globals and function definitions use C linkage
+// to match the extern "C" declarations in curses_include_fix.h.
+// EM_JS is intentionally avoided here: it generates WASM imports
+// whose attributes are not visible to call sites that already have a
+// plain extern declaration from curses_include_fix.h. Instead, we
+// use EM_ASM inside ordinary C functions (which become regular WASM
+// functions and resolve calls from any TU without import issues).
+//
+// IMPORTANT: EM_ASM(code, ...) stringifies only the FIRST macro arg.
+// The C preprocessor splits at every comma not inside ().
+// Braces {} and brackets [] do NOT protect commas.
+// All JS bodies below are comma-free for this reason.
+//
+// cchar_t encoding (uint32_t):
+//   bits  0-20  Unicode code point
+//   bit  21     bold flag  (A_BOLD  = 0x200)
+//   bit  22     reverse flag (A_REVERSE = 0x2000)
+//   bits 24-31  color pair index (0-255)
+// -----------------------------------------------------------------
+extern "C" {
+
+// --- Globals ----------------------------------------------------------
+int LINES = 24;
+int COLS  = 80;
+int COLORS = 256;
+int COLOR_PAIRS = 256;
+int ESCDELAY = 25;
+
+// --- Screen init ------------------------------------------------------
+int initscr(void)
+{
+    EM_ASM({
+        var rows = 24;
+        var cols = 80;
+        var pairs = [];
+        var i = 0;
+        while (i < 256) {
+            var pair = [];
+            pair.push(7);
+            pair.push(0);
+            pairs.push(pair);
+            i++;
+        }
+        var screen = [];
+        var r = 0;
+        while (r < rows) {
+            var row = [];
+            var c = 0;
+            while (c < cols) {
+                var cell = {};
+                cell.ch = ' ';
+                cell.fg = 7;
+                cell.bg = 0;
+                cell.bold = false;
+                row.push(cell);
+                c++;
+            }
+            screen.push(row);
+            r++;
+        }
+        Module._dcss = {};
+        Module._dcss.cx = 0;
+        Module._dcss.cy = 0;
+        Module._dcss.rows = rows;
+        Module._dcss.cols = cols;
+        Module._dcss.attr = 0;
+        Module._dcss.pair = 0;
+        Module._dcss.pairs = pairs;
+        Module._dcss.screen = screen;
+    });
+    return 0;
+}
+int endwin(void) { return 0; }
+
+// --- Erase / clear ----------------------------------------------------
+int erase(void)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var d = Module._dcss;
+        var r = 0;
+        while (r < d.rows) {
+            var c = 0;
+            while (c < d.cols) {
+                var cell = {};
+                cell.ch = ' ';
+                cell.fg = 7;
+                cell.bg = 0;
+                cell.bold = false;
+                d.screen[r][c] = cell;
+                c++;
+            }
+            r++;
+        }
+    });
+    return 0;
+}
+int clear(void) { return erase(); }
+
+// --- Cursor movement --------------------------------------------------
+int move(int y, int x)
+{
+    EM_ASM({ if (Module._dcss) { Module._dcss.cy = $0; Module._dcss.cx = $1; } }, y, x);
+    return 0;
+}
+int clrtoeol(void)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var d = Module._dcss;
+        if (d.cy >= 0 && d.cy < d.rows) {
+            var c = d.cx;
+            while (c < d.cols) {
+                var cell = {};
+                cell.ch = ' ';
+                cell.fg = 7;
+                cell.bg = 0;
+                cell.bold = false;
+                d.screen[d.cy][c] = cell;
+                c++;
+            }
+        }
+    });
+    return 0;
+}
+
+// --- Attributes & color -----------------------------------------------
+int attron(attr_t attrs)
+{
+    EM_ASM({ if (Module._dcss) Module._dcss.attr |= $0; }, (int)attrs);
+    return 0;
+}
+int attroff(attr_t attrs)
+{
+    EM_ASM({ if (Module._dcss) Module._dcss.attr &= ~$0; }, (int)attrs);
+    return 0;
+}
+int attr_set(attr_t attrs, short pair, void* opts)
+{
+    EM_ASM({
+        if (Module._dcss) { Module._dcss.attr = $0; Module._dcss.pair = $1; }
+    }, (int)attrs, (int)pair);
+    return 0;
+}
+int start_color(void) { return 0; }
+int init_pair(short pair, short fg, short bg)
+{
+    EM_ASM({
+        if (Module._dcss && $0 >= 0 && $0 < 256) {
+            var p = [];
+            p.push($1 < 0 ? 7 : $1);
+            p.push($2 < 0 ? 0 : $2);
+            Module._dcss.pairs[$0] = p;
+        }
+    }, (int)pair, (int)fg, (int)bg);
+    return 0;
+}
+int pair_content(short pair, short* fg, short* bg)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var p = Module._dcss.pairs[$0];
+        if (!p) { p = []; p.push(7); p.push(0); }
+        if ($1) HEAP16[$1 >> 1] = p[0];
+        if ($2) HEAP16[$2 >> 1] = p[1];
+    }, (int)pair, (int)fg, (int)bg);
+    return 0;
+}
+
+// --- Text output ------------------------------------------------------
+int addnwstr(const wchar_t* ptr, int n)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var d = Module._dcss;
+        var bold = (d.attr & 0x200) !== 0;
+        var rev  = (d.attr & 0x2000) !== 0;
+        var p    = d.pairs[d.pair];
+        if (!p) { p = []; p.push(7); p.push(0); }
+        var fg   = rev ? p[1] : p[0];
+        var bg   = rev ? p[0] : p[1];
+        var wptr = $0;
+        var wn   = $1;
+        var i    = 0;
+        while (wn < 0 || i < wn) {
+            var code = HEAP32[(wptr >> 2) + i];
+            if (code === 0) break;
+            if (d.cy >= 0 && d.cy < d.rows && d.cx >= 0 && d.cx < d.cols) {
+                var cell = {};
+                cell.ch = String.fromCodePoint(code);
+                cell.fg = fg;
+                cell.bg = bg;
+                cell.bold = bold;
+                d.screen[d.cy][d.cx] = cell;
+            }
+            d.cx++;
+            i++;
+        }
+    }, (int)ptr, n);
+    return 0;
+}
+int mvaddstr(int y, int x, const char* str)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var d = Module._dcss;
+        d.cy = $0;
+        d.cx = $1;
+        var bold = (d.attr & 0x200) !== 0;
+        var rev  = (d.attr & 0x2000) !== 0;
+        var p    = d.pairs[d.pair];
+        if (!p) { p = []; p.push(7); p.push(0); }
+        var fg   = rev ? p[1] : p[0];
+        var bg   = rev ? p[0] : p[1];
+        var sptr = $2;
+        var i    = 0;
+        while (true) {
+            var code = HEAPU8[sptr + i];
+            if (code === 0) break;
+            if (d.cy >= 0 && d.cy < d.rows && d.cx >= 0 && d.cx < d.cols) {
+                var cell = {};
+                cell.ch = String.fromCharCode(code);
+                cell.fg = fg;
+                cell.bg = bg;
+                cell.bold = bold;
+                d.screen[d.cy][d.cx] = cell;
+            }
+            d.cx++;
+            i++;
+        }
+    }, y, x, (int)str);
+    return 0;
+}
+int mvwaddstr(WINDOW*, int y, int x, const char* s) { return mvaddstr(y, x, s); }
+
+// --- cchar_t operations -----------------------------------------------
+int mvadd_wchnstr(int y, int x, const cchar_t* ch, int n)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var d = Module._dcss;
+        var wy = $0;
+        var wx = $1;
+        var wch = $2;
+        var wn = $3;
+        var i = 0;
+        while (i < wn) {
+            var v       = HEAPU32[(wch >> 2) + i];
+            var cp      = v & 0x1FFFFF;
+            var bold    = ((v >> 21) & 1) !== 0;
+            var pairIdx = (v >> 24) & 0xFF;
+            var p       = d.pairs[pairIdx];
+            if (!p) { p = []; p.push(7); p.push(0); }
+            var fx      = wx + i;
+            if (wy >= 0 && wy < d.rows && fx >= 0 && fx < d.cols) {
+                var cell = {};
+                cell.ch = cp > 0x1F ? String.fromCodePoint(cp) : ' ';
+                cell.fg = p[0];
+                cell.bg = p[1];
+                cell.bold = bold;
+                d.screen[wy][fx] = cell;
+            }
+            i++;
+        }
+    }, y, x, (int)ch, n);
+    return 0;
+}
+int mvin_wch(int y, int x, cchar_t* c)
+{
+    EM_ASM({
+        var wy = $0;
+        var wx = $1;
+        var wc = $2;
+        if (!Module._dcss || !wc) return;
+        var d = Module._dcss;
+        if (wy < 0 || wy >= d.rows || wx < 0 || wx >= d.cols) return;
+        var cell = d.screen[wy][wx];
+        var cp = (cell.ch && cell.ch.length > 0) ? cell.ch.codePointAt(0) : 0x20;
+        HEAPU32[wc >> 2] = (cell.bold ? (1 << 21) : 0) | (cp & 0x1FFFFF);
+    }, y, x, (int)c);
+    return 0;
+}
+int getcchar(const cchar_t* ch, wchar_t* wch, attr_t* attr_ptr, short* pair_ptr, void** opts)
+{
+    EM_ASM({
+        var wch_v    = $0;
+        var wch_ptr  = $1;
+        var attr_ptr = $2;
+        var pair_ptr = $3;
+        if (!wch_v) return;
+        var v       = HEAPU32[wch_v >> 2];
+        var cp      = v & 0x1FFFFF;
+        var bold    = (v >> 21) & 1;
+        var pairIdx = (v >> 24) & 0xFF;
+        if (wch_ptr)  HEAPU32[wch_ptr >> 2]  = cp;
+        if (attr_ptr) HEAP32[attr_ptr >> 2]   = bold ? 0x200 : 0;
+        if (pair_ptr) HEAP16[pair_ptr >> 1]   = pairIdx;
+    }, (int)ch, (int)wch, (int)attr_ptr, (int)pair_ptr);
+    return 1;
+}
+int setcchar(cchar_t* ch, const wchar_t* wch, attr_t attr, short pair, void* opts)
+{
+    EM_ASM({
+        var wch_dst = $0;
+        var wch_src = $1;
+        var wattr   = $2;
+        var wpair   = $3;
+        if (!wch_dst) return;
+        var cp   = wch_src ? HEAPU32[wch_src >> 2] : 0x20;
+        var bold = (wattr & 0x200) ? 1 : 0;
+        HEAPU32[wch_dst >> 2] = ((wpair & 0xFF) << 24) | (bold << 21) | (cp & 0x1FFFFF);
+    }, (int)ch, (int)wch, (int)attr, (int)pair);
+    return 0;
+}
+
+// --- Cursor position --------------------------------------------------
+int getcurx(WINDOW* win)
+{
+    return EM_ASM_INT({ return Module._dcss ? Module._dcss.cx : 0; });
+}
+int getcury(WINDOW* win)
+{
+    return EM_ASM_INT({ return Module._dcss ? Module._dcss.cy : 0; });
+}
+
+// --- Refresh ----------------------------------------------------------
+// Renders the JS screen buffer to the xterm.js terminal via window.dcssWrite().
+int refresh(void)
+{
+    EM_ASM({
+        if (!Module._dcss) return;
+        var d = Module._dcss;
+        var parts = [];
+        parts.push('\x1b[?25l\x1b[H');
+        var r = 0;
+        while (r < d.rows) {
+            var c = 0;
+            while (c < d.cols) {
+                var cell = d.screen[r][c];
+                var seq = '\x1b[';
+                seq += cell.bold ? '1' : '0';
+                seq += ';3';
+                seq += (cell.fg & 7).toString();
+                seq += ';4';
+                seq += (cell.bg & 7).toString();
+                seq += 'm';
+                seq += cell.ch;
+                parts.push(seq);
+                c++;
+            }
+            if (r < d.rows - 1) { parts.push('\r\n'); }
+            r++;
+        }
+        parts.push('\x1b[0m\x1b[?25h');
+        var out = parts.join('');
+        if (typeof window !== 'undefined' && window.dcssWrite) { window.dcssWrite(out); }
+    });
+    return 0;
+}
+int wrefresh(WINDOW*) { return refresh(); }
+
+// --- Remaining no-op stubs --------------------------------------------
+int  keypad(WINDOW*, int)                        { return 0; }
+int  use_default_colors(void)                    { return 0; }
+int  nodelay(WINDOW* win, int bf)
+{
+    // Use a top-level flag so kbhit() works even before initscr().
+    EM_ASM({ Module._dcssNodelay = !!$0; }, (int)bf);
+    return 0;
+}
+void timeout(int)                                { }
+int  mvaddch(int, int, const char)               { return 0; }
+int  printw(const char*, ...)                    { return 0; }
+WINDOW* newwin(int, int, int, int)               { return stdscr; }
+int  delwin(WINDOW*)                             { return 0; }
+int  leaveok(WINDOW*, int)                       { return 0; }
+int  notimeout(WINDOW*, int)                     { return 0; }
+int  nl(void)                                    { return 0; }
+int  nonl(void)                                  { return 0; }
+int  raw(void)                                   { return 0; }
+int  noecho(void)                                { return 0; }
+int  echo(void)                                  { return 0; }
+int  scrollok(WINDOW*, int)                      { return 0; }
+int  set_escdelay(int)                           { return 0; }
+int  has_key(int)                                { return 0; }
+void* tigetstr(const char*)                      { return nullptr; }
+int  putwin(WINDOW*, FILE*)                      { return 0; }
+WINDOW* derwin(WINDOW*, int, int, int, int)      { return stdscr; }
+int  wechochar(WINDOW*, const char)              { return 0; }
+int  mvwaddch(WINDOW*, int, int, const char)     { return 0; }
+int  init_color(short, short, short, short)      { return 0; }
+int  can_change_color(void)                      { return 0; }
+int  color_content(short, short*, short*, short*){ return 0; }
+char* termname(void) { return const_cast<char*>("xterm-256color"); }
+int  mvadd_wch(int, int, const char)             { return 0; }
+int  add_wch(const char*)                        { return 0; }
+
+// Input (getch/wgetch/get_wch) is provided by library_dcss.js —
+// it uses Asyncify.handleSleep directly for a single-suspend per
+// blocking read, avoiding the recursive stack blowup that a C-side
+// emscripten_sleep() polling loop produced.
+
+} // extern "C"
+#endif // __EMSCRIPTEN__

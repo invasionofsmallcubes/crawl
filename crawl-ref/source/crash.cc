@@ -32,7 +32,8 @@
     defined(TARGET_OS_NETBSD) || \
     defined(TARGET_OS_OPENBSD) || \
     defined(TARGET_COMPILER_CYGWIN) || \
-    defined(__ANDROID__)
+    defined(__ANDROID__) || \
+    defined(__EMSCRIPTEN__)
         #undef BACKTRACE_SUPPORTED
 #endif
 #endif
@@ -43,7 +44,8 @@
 
 #if !defined(TARGET_OS_MACOSX) && \
     !defined(TARGET_OS_WINDOWS) && \
-    !defined(TARGET_COMPILER_CYGWIN)
+    !defined(TARGET_COMPILER_CYGWIN) && \
+    !defined(__EMSCRIPTEN__)
 #include <execinfo.h>
 #endif
 
@@ -72,7 +74,7 @@ template <typename TO, typename FROM> TO nasty_cast(FROM f)
 #endif // BACKTRACE_SUPPORTED
 
 // Support Yama LSM ptrace restrictions
-#ifdef TARGET_OS_LINUX
+#if defined(TARGET_OS_LINUX) && !defined(__EMSCRIPTEN__)
 #   include <sys/prctl.h>
 #   ifndef PR_SET_PTRACER
 #       define PR_SET_PTRACER 0x59616d61
@@ -400,7 +402,7 @@ void call_gdb(FILE *file)
     char attach_cmd[20] = {};
     snprintf(attach_cmd, sizeof(attach_cmd), "attach %d", getpid());
 
-#ifdef TARGET_OS_LINUX
+#if defined(TARGET_OS_LINUX) && !defined(__EMSCRIPTEN__)
     prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
 #endif
     switch (int gdb = fork())

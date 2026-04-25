@@ -1,6 +1,65 @@
 #pragma once
 
-#ifndef TARGET_OS_WINDOWS
+#ifdef TARGET_OS_WINDOWS
+
+#include <windows.h>
+#include <errno.h>
+
+#define mutex_t CRITICAL_SECTION
+#define mutex_lock(x) EnterCriticalSection(&x)
+#define mutex_unlock(x) LeaveCriticalSection(&x)
+#define mutex_init(x) InitializeCriticalSection(&x);
+#define mutex_destroy(x) DeleteCriticalSection(&x);
+
+#define thread_t HANDLE
+#define thread_create_joinable(th, start, arg)  \
+    (!(*th=CreateThread(0, 0, (LPTHREAD_START_ROUTINE)(start), (void*)(arg), \
+                        0, (LPDWORD)(th))))
+#define thread_join(th)                         \
+    {                                           \
+        WaitForSingleObject(th, INFINITE);      \
+        CloseHandle(th);                        \
+    }
+#define thread_create_detached(th, start, arg)  \
+    (win32_thread_create_detached(th, (LPTHREAD_START_ROUTINE)(start), (void*)(arg)))
+
+static inline int win32_thread_create_detached(thread_t *th,
+                                               LPTHREAD_START_ROUTINE start,
+                                               void *arg)
+{
+    DWORD dummy;
+
+    if (!(*th = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)start, arg, 0, &dummy)))
+        return EAGAIN;
+    CloseHandle(*th);
+    return !*th;
+}
+
+#define cond_t HANDLE
+#define cond_init(x) {(x)=CreateEvent(0, 0, 0, 0);}
+#define cond_destroy(x) CloseHandle(x);
+#define cond_wait(x,m) {mutex_unlock(m);WaitForSingleObject(x, INFINITE);mutex_lock(m);}
+#define cond_wake(x) PulseEvent(x)
+
+#elif defined(__EMSCRIPTEN__)
+
+// Empty stubs for Emscripten - single-threaded execution
+#define mutex_t int
+#define mutex_lock(x) ((void)0)
+#define mutex_unlock(x) ((void)0)
+#define mutex_init(x) ((void)0)
+#define mutex_destroy(x) ((void)0)
+#define thread_t int
+#define thread_create_joinable(th, start, arg) (0)
+#define thread_join(th) ((void)0)
+#define thread_create_detached(th, start, arg) (0)
+#define cond_t int
+#define cond_init(x) ((void)0)
+#define cond_destroy(x) ((void)0)
+#define cond_wait(x,m) ((void)0)
+#define cond_wake(x) ((void)0)
+
+#else
 
 #include <pthread.h>
 
@@ -8,10 +67,6 @@
 // AIX
 # define PTHREAD_CREATE_UNDETACHED
 #endif
-//#ifndef PTHREAD_MUTEX_RECURSIVE
-//// LinuxThreads, probably gone from any semi-modern system
-//# define PTHREAD_MUTEX_RECURSIVE PTHREAD_MUTEX_RECURSIVE_NP
-//#endif
 
 #define mutex_t pthread_mutex_t
 #define mutex_lock(x) pthread_mutex_lock(&x)
@@ -53,48 +108,5 @@ static inline int unix_pthread_create(pthread_t *th, int det,
 #define cond_destroy(x) pthread_cond_destroy(&x)
 #define cond_wait(x,m) pthread_cond_wait(&x, &m)
 #define cond_wake(x) pthread_cond_signal(&x)
-
-
-#else
-
-
-#include <windows.h>
-#include <errno.h>
-
-#define mutex_t CRITICAL_SECTION
-#define mutex_lock(x) EnterCriticalSection(&x)
-#define mutex_unlock(x) LeaveCriticalSection(&x)
-#define mutex_init(x) InitializeCriticalSection(&x);
-#define mutex_destroy(x) DeleteCriticalSection(&x);
-
-#define thread_t HANDLE
-#define thread_create_joinable(th, start, arg)  \
-    (!(*th=CreateThread(0, 0, (LPTHREAD_START_ROUTINE)(start), (void*)(arg), \
-                        0, (LPDWORD)(th))))
-#define thread_join(th)                         \
-    {                                           \
-        WaitForSingleObject(th, INFINITE);      \
-        CloseHandle(th);                        \
-    }
-#define thread_create_detached(th, start, arg)  \
-    (win32_thread_create_detached(th, (LPTHREAD_START_ROUTINE)(start), (void*)(arg)))
-
-static inline int win32_thread_create_detached(thread_t *th,
-                                               LPTHREAD_START_ROUTINE start,
-                                               void *arg)
-{
-    DWORD dummy;
-
-    if (!(*th = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)start, arg, 0, &dummy)))
-        return EAGAIN;
-    CloseHandle(*th);
-    return !*th;
-}
-
-#define cond_t HANDLE
-#define cond_init(x) {(x)=CreateEvent(0, 0, 0, 0);}
-#define cond_destroy(x) CloseHandle(x);
-#define cond_wait(x,m) {mutex_unlock(m);WaitForSingleObject(x, INFINITE);mutex_lock(m);}
-#define cond_wake(x) PulseEvent(x)
 
 #endif
