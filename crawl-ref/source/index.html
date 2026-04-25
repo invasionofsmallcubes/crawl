@@ -2,185 +2,235 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>DCSS ASCII — WebAssembly</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Crawl Stone Soup — WebAssembly</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #000; display: flex; flex-direction: column; align-items: center;
-         justify-content: flex-start; min-height: 100vh; padding: 8px; }
-  #status { color: #aaa; font-family: monospace; font-size: 13px; margin-bottom: 6px; }
-  #terminal { border: 1px solid #333; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+      background: #0a0a0a;
+      color: #c0c0c0;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      gap: 32px;
+  }
+
+  header { text-align: center; }
+
+  h1 {
+      font-size: clamp(1.4rem, 5vw, 2.2rem);
+      color: #f0d060;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 12px #a08020;
+  }
+
+  .subtitle {
+      margin-top: 6px;
+      color: #666;
+      font-size: 0.85rem;
+  }
+
+  .cards {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 560px;
+  }
+
+  .card {
+      flex: 1 1 220px;
+      background: #141414;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-decoration: none;
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+  }
+  .card:hover, .card:focus {
+      border-color: #556;
+      background: #1a1a22;
+      outline: none;
+  }
+  .card:active {
+      background: #1e1e2a;
+  }
+
+  .card-title {
+      font-size: 1.2rem;
+      color: #8cf;
+  }
+
+  .card-mode {
+      font-size: 0.75rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+  }
+
+  .card-desc {
+      font-size: 0.82rem;
+      color: #888;
+      line-height: 1.5;
+      flex: 1;
+  }
+
+  .card-size {
+      font-size: 0.75rem;
+      color: #555;
+      border-top: 1px solid #222;
+      padding-top: 8px;
+      margin-top: 4px;
+  }
+
+  .card-play {
+      display: inline-block;
+      background: #1a2e1a;
+      color: #7f7;
+      border: 1px solid #3a5a3a;
+      border-radius: 5px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      text-align: center;
+      cursor: pointer;
+      touch-action: manipulation;
+  }
+  .card:hover .card-play {
+      background: #203820;
+      border-color: #4a7a4a;
+  }
+
+  /* VKB toggle row */
+  .vkb-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.88rem;
+      color: #888;
+  }
+
+  /* Toggle switch */
+  .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+  }
+  .switch input { display: none; }
+  .slider {
+      position: absolute;
+      inset: 0;
+      background: #333;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+      touch-action: manipulation;
+  }
+  .slider::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: #888;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+  }
+  .switch input:checked + .slider { background: #2a5a2a; }
+  .switch input:checked + .slider::before {
+      transform: translateX(20px);
+      background: #7f7;
+  }
+
+  footer {
+      color: #444;
+      font-size: 0.72rem;
+      text-align: center;
+  }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
 </head>
 <body>
-<div id="status">Loading DCSS…</div>
-<div id="terminal"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<header>
+  <h1>Dungeon Crawl Stone Soup</h1>
+  <p class="subtitle">WebAssembly port — choose your version</p>
+</header>
+
+<div class="cards">
+  <a class="card" id="card-ascii" href="ascii.html" tabindex="0">
+    <div class="card-mode">ASCII · Terminal</div>
+    <div class="card-title">Classic</div>
+    <div class="card-desc">
+      Full DCSS experience rendered in a terminal. Fast load,
+      works on any device with a keyboard.
+    </div>
+    <div class="card-size">~5 MB download</div>
+    <div class="card-play">Play ASCII →</div>
+  </a>
+
+  <a class="card" id="card-tiles" href="tiles.html" tabindex="0">
+    <div class="card-mode">Tiles · Graphics</div>
+    <div class="card-title">Tiles</div>
+    <div class="card-desc">
+      Sprite-based graphics via SDL2 and WebGL.
+      Dungeon, HUD, and menus rendered with tiles.
+    </div>
+    <div class="card-size">~55 MB download</div>
+    <div class="card-play">Play Tiles →</div>
+  </a>
+</div>
+
+<div class="vkb-row">
+  <label class="switch" title="Adds an on-screen d-pad and action buttons for touch devices">
+    <input type="checkbox" id="vkb-check">
+    <span class="slider"></span>
+  </label>
+  <span>Virtual keyboard <span style="color:#555">(for mobile / touchscreen)</span></span>
+</div>
+
+<footer>
+  Dungeon Crawl Stone Soup is open-source.<br>
+  This WASM port runs entirely in your browser — no server needed.
+</footer>
+
 <script>
-// ---------------------------------------------------------------------------
-// 1. Terminal setup
-// ---------------------------------------------------------------------------
-const term = new Terminal({
-    cols: 80,
-    rows: 24,
-    fontFamily: 'Courier New, monospace',
-    fontSize: 16,
-    theme: { background: '#000000', foreground: '#c0c0c0' },
-    cursorStyle: 'underline',
-    convertEol: false,
-});
-const fitAddon = new FitAddon.FitAddon();
-term.loadAddon(fitAddon);
-term.open(document.getElementById('terminal'));
-// Confirm xterm.js is alive immediately.
-term.write('\x1b[32mxterm.js OK — waiting for DCSS...\x1b[0m\r\n');
+(function () {
+    var check = document.getElementById('vkb-check');
 
-// ---------------------------------------------------------------------------
-// 2. Bridge: C -> JS (output)
-// ---------------------------------------------------------------------------
-// Called by refresh() in libunix.cc to push ANSI frame to xterm.
-var dcssWriteCount = 0;
-window.dcssWrite = function(ansiStr) {
-    dcssWriteCount++;
-    if (dcssWriteCount <= 3) {
-        console.log('[dcssWrite #' + dcssWriteCount + '] len=' + ansiStr.length,
-                    JSON.stringify(ansiStr.slice(0, 80)));
-    }
-    term.write(ansiStr);
-};
+    // Restore preference from localStorage.
+    var stored;
+    try { stored = localStorage.getItem('vkb-enabled'); } catch (e) {}
+    if (stored === '1') check.checked = true;
 
-// ---------------------------------------------------------------------------
-// 3. Bridge: JS -> C (input)
-// ---------------------------------------------------------------------------
-// Module._dcssKeyResolve is set by getch/get_wch ASYNCIFY stubs;
-// calling it with a keycode unblocks the WASM stack.
-window.Module = window.Module || {};
-
-// Map xterm key events to ncurses-compatible keycodes.
-// Printable chars pass through as-is; special keys use DCSS's expected values.
-const KEY_MAP = {
-    'ArrowUp':    0x101,  // KEY_UP
-    'ArrowDown':  0x102,  // KEY_DOWN
-    'ArrowLeft':  0x103,  // KEY_LEFT
-    'ArrowRight': 0x104,  // KEY_RIGHT
-    'Backspace':  0x107,  // KEY_BACKSPACE
-    'Delete':     0x14C,  // KEY_DC
-    'Insert':     0x14D,  // KEY_IC
-    'Home':       0x106,  // KEY_HOME
-    'End':        0x166,  // KEY_END
-    'PageUp':     0x153,  // KEY_PPAGE
-    'PageDown':   0x152,  // KEY_NPAGE
-    'Escape':     27,
-    'Tab':        9,
-    'Enter':      13,
-};
-
-// Key events either unblock a suspended getch() (via
-// Module._dcssKeyResolve set by library_dcss.js) or queue up in
-// Module._dcssKeyBuffer for the next getch() to drain.
-Module._dcssKeyBuffer = [];
-
-term.onKey(function(ev) {
-    var key = ev.domEvent.key;
-    var code;
-
-    var mapped = KEY_MAP[key];
-    if (mapped !== undefined) {
-        code = mapped;
-    } else if (ev.domEvent.ctrlKey && key.length === 1) {
-        code = key.toUpperCase().charCodeAt(0) - 64;
-    } else if (key.length === 1) {
-        code = key.codePointAt(0);
-    } else {
-        return;
-    }
-
-    if (Module._dcssKeyResolve) {
-        Module._dcssKeyResolve(code);
-    } else {
-        Module._dcssKeyBuffer.push(code);
-    }
-});
-
-// ---------------------------------------------------------------------------
-// 4. Module configuration (must be set before dcss_ascii.js runs)
-// ---------------------------------------------------------------------------
-Module.noInitialRun = false;
-// Override NO_EXIT_RUNTIME so onExit fires when DCSS calls exit().
-Module.noExitRuntime = false;
-
-// Tell DCSS to use /crawl as its home dir (no real ~ in WASM).
-Module.arguments = ['-dir', '/crawl'];
-
-// Create /crawl and subdirs before main() runs.
-Module.preRun = Module.preRun || [];
-Module.preRun.push(function() {
-    var dirs = ['/crawl', '/crawl/saves', '/crawl/morgue', '/crawl/crash'];
-    dirs.forEach(function(d) {
-        try { FS.mkdir(d); } catch(e) {}
+    check.addEventListener('change', function () {
+        try { localStorage.setItem('vkb-enabled', check.checked ? '1' : '0'); } catch (e) {}
+        updateLinks();
     });
-    Module._dcssKeyBuffer = Module._dcssKeyBuffer || [];
-    var ok = FS.analyzePath('/crawl').exists;
-    term.write('\x1b[36m[preRun] /crawl exists=' + ok + ' args=' + JSON.stringify(Module.arguments) + '\x1b[0m\r\n');
-    console.log('[dcss] preRun done, /crawl exists:', ok);
-});
 
-Module.print = function(text) {
-    console.log('[dcss stdout]', text);
-    term.write(text + '\r\n');
-};
-Module.printErr = function(text) {
-    console.warn('[dcss stderr]', text);
-    term.write('\x1b[33m' + text + '\x1b[0m\r\n');
-};
+    function updateLinks() {
+        var vkb = check.checked ? '?vkb=1' : '';
+        document.getElementById('card-ascii').href = 'ascii.html' + vkb;
+        document.getElementById('card-tiles').href = 'tiles.html' + vkb;
+    }
 
-Module.onExit = function(code) {
-    console.error('[dcss] exited with code', code);
-    term.write('\r\n\x1b[31m[DCSS exited with code ' + code + ']\x1b[0m\r\n');
-};
-
-Module.onRuntimeInitialized = function() {
-    document.getElementById('status').textContent = 'DCSS running — click terminal and press a key to start';
-    console.log('[dcss] onRuntimeInitialized — Module._dcss =', Module._dcss);
-    term.focus();
-    // Periodic check: log game progress so we can tell what's happening.
-    var lastWriteCount = 0;
-    var lastBufferLen = 0;
-    var checkN = 0;
-    var checkInterval = setInterval(function() {
-        checkN++;
-        var bufLen = (Module._dcssKeyBuffer || []).length;
-        var hasDcss = !!Module._dcss;
-        console.log('[dcss] t=' + checkN + 's',
-                    'dcss=' + hasDcss,
-                    'writes=' + dcssWriteCount,
-                    'bufLen=' + bufLen);
-        if (hasDcss) {
-            // Game reached initscr(); stop reporting.
-            clearInterval(checkInterval);
-            term.write('\x1b[32m[initscr() reached at t=' + checkN + 's]\x1b[0m\r\n');
-        } else if (checkN === 3) {
-            term.write('\r\n\x1b[33m[t=3s] initscr() not reached yet.\r\n' +
-                       'If the game is polling a blocking getch() before curses init,\r\n' +
-                       'click the terminal and press ENTER to unblock it.\x1b[0m\r\n');
-        } else if (checkN >= 15) {
-            clearInterval(checkInterval);
-            term.write('\r\n\x1b[31m[giving up after 15s — game never called initscr()]\x1b[0m\r\n');
-        }
-    }, 1000);
-};
-
-Module.onAbort = function(what) {
-    document.getElementById('status').textContent = 'DCSS ABORTED: ' + what;
-    console.error('[dcss] onAbort:', what);
-};
-
-// ---------------------------------------------------------------------------
-// 5. Load the Emscripten-generated JS glue
-// ---------------------------------------------------------------------------
+    updateLinks();
+}());
 </script>
-<script src="crawl.js"></script>
+
 </body>
 </html>
