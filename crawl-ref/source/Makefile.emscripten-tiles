@@ -1,0 +1,158 @@
+# Custom Emscripten Makefile Wrapper for DCSS Tiles
+# Mirrors Makefile.emscripten (the ASCII variant); diverges where tile rendering
+# requires SDL2/freetype/libpng ports and a GLES2 shader path.
+#
+# Build flow:
+#   1. host-rltiles: invoke rltiles/Makefile with the *host* g++ toolchain to
+#      produce tilegen.elf and the dat/tiles/*.png + tiledef-*.{h,cc} outputs.
+#      MUST run with system compiler, not emcc — the binary executes at build
+#      time on the build machine.
+#   2. crawl_tiles: invoke the main Makefile with emcc, TILES=YesPlease, the
+#      Emscripten SDL2/freetype/libpng ports, and a WebGL2 context.
+# Outputs crawl_tiles.{js,wasm,data} alongside the ASCII crawl.{js,wasm,data}.
+
+# 1. Compiler — Emscripten for the WASM compile/link
+CC = emcc
+CXX = em++
+AR = emar
+RANLIB = emranlib
+
+# 2. Emscripten port flags — must be present at BOTH compile AND link.
+# At compile time, emcc swaps the fakesdl/fakegles headers (which #error out
+# unless these flags are set) for the real port headers; if they're only on
+# the link line, every TU that #include <SDL.h> fails compilation.
+EMCC_PORT_FLAGS = --use-port=sdl2 \
+                  --use-port=sdl2_image:formats=png \
+                  --use-port=freetype \
+                  --use-port=libpng
+
+# 3. Preprocessor defines
+# - PROPORTIONAL_FONT / MONOSPACED_FONT override the dat/tiles/-relative font
+#   lookup in fontwrapper-ft.cc, pointing at the absolute MEMFS path produced
+#   by --preload-file contrib/fonts@/fonts (see EMCC_LDFLAGS below).
+# - No CURSES_INCLUDE_FILE: libunix.cc is auto-excluded by Makefile:394–400
+#   when TILES is set, so the curses shim is dead code in this target.
+# - EMCC_PORT_FLAGS appended so the compile invocation activates the SDL2 /
+#   freetype / libpng port headers.
+DEFINES = -D__EMSCRIPTEN__=1 \
+          -DTARGET_OS_LINUX=1 \
+          -DUNIX=1 \
+          -DUSE_UNIX_SIGNALS=1 \
+          -DREGEX_POSIX=1 \
+          -DUSE_SQLITE_DBM=1 \
+          -fexceptions \
+          $(EMCC_PORT_FLAGS)
+# PROPORTIONAL_FONT / MONOSPACED_FONT are passed as Make variables (not -D
+# preprocessor defines) — the parent Makefile (lines 1011-1031) reads them
+# as ifdef-tested variables and emits its own -DPROPORTIONAL_FONT="..." when
+# they're set. Without this, the parent runs util/find_font which on the
+# Linux container resolves to /usr/share/fonts/truetype/dejavu/* — paths
+# that don't exist inside the WASM MEMFS.
+WASM_FONTS = PROPORTIONAL_FONT=/fonts/DejaVuSans.ttf \
+             MONOSPACED_FONT=/fonts/DejaVuSansMono.ttf
+
+# 3. Emscripten linker flags
+# - INITIAL_MEMORY=384MB: tile atlases (16 MB each as RGBA8 in GL memory) + the
+#   wasm heap exceed the ASCII build's 256 MB before the first frame; pre-grow.
+# - --use-port=sdl2 / sdl2_image / freetype / libpng: Emscripten's pre-built
+#   ports. We do NOT build these from contrib (would need 4 cross-compile
+#   recipes; the ports work and Emscripten's libpng pulls Emscripten's zlib).
+# - MIN_WEBGL_VERSION=2 / MAX_WEBGL_VERSION=2: the GLES2 shader path written
+#   into glwrapper-ogl.cc (Commit 3) targets WebGL2.
+# - --preload-file contrib/fonts@/fonts: makes DejaVuSans*.ttf available at
+#   the absolute paths the PROPORTIONAL_FONT/MONOSPACED_FONT defines reference.
+# - --pre-js fs_init.js: mounts IDBFS at /saves and /morgue (carries forward
+#   from the ASCII build).
+# - No --js-library library_dcss.js: that shim is curses-only (getch/wgetch/
+#   get_wch) and unreferenced when USE_TILE_LOCAL is on.
+EMCC_LDFLAGS = -s WASM=1 \
+               -s INITIAL_MEMORY=402653184 \
+               -s ALLOW_MEMORY_GROWTH=1 \
+               -s USE_SQLITE3=1 \
+               -s ASYNCIFY=1 \
+               -s ASYNCIFY_STACK_SIZE=4194304 \
+               -s STACK_SIZE=8388608 \
+               -s ASSERTIONS=1 \
+               -s NO_EXIT_RUNTIME=1 \
+               -fexceptions \
+               $(EMCC_PORT_FLAGS) \
+               -s MIN_WEBGL_VERSION=2 \
+               -s MAX_WEBGL_VERSION=2 \
+               -lidbfs.js \
+               --preload-file dat@/dat \
+               --preload-file contrib/fonts@/fonts \
+               --pre-js fs_init.js
+
+# 4. Disable unsupported features in the parent Makefile
+# - USE_SOUND=/SOUND=: SDL2_mixer and audio are de-scoped for MVP.
+# - WEBTILES=: we want the LOCAL tiles path, not the WebSocket/server variant.
+# - NO_NCURSES=YesPlease: tiles build doesn't link curses anyway, but suppress
+#   any -lncursesw the main Makefile might otherwise add.
+# - EXTRA_LIBS=: prevent -pthread (would force --shared-memory in wasm-ld).
+# - BUILD_SQLITE=: use Emscripten's USE_SQLITE3=1 port instead of contrib.
+# - BUILD_SDL2=/BUILD_SDL2IMAGE=/BUILD_FREETYPE=/BUILD_LIBPNG=: same — use
+#   Emscripten's ports, not contrib cross-compiled to WASM.
+# - BUILD_ZLIB= (NOT yes): the libpng/SDL2_image ports pull Emscripten's own
+#   zlib. Carrying contrib zlib alongside causes wasm-ld symbol collisions.
+# - NO_PKGCONFIG is intentionally NOT set: the parent Makefile's build-rltiles
+#   rule (Makefile:1916) forwards NO_PKGCONFIG to the rltiles sub-make, where
+#   it controls whether rltiles uses pkg-config or falls back to
+#   contrib/install/$(ARCH)/lib/libpng.a. Under emcc, $(ARCH) is
+#   wasm32-unknown-emscripten, and we DO NOT build contrib libpng for that
+#   target — so the fallback path doesn't exist and host link of tilegen.elf
+#   fails. Leaving NO_PKGCONFIG unset means rltiles queries pkg-config and
+#   finds the system libpng-dev installed in the Dockerfile. The parent's own
+#   pkg-config queries for SDL2/freetype return empty (those system libs
+#   aren't installed) but that's fine — --use-port=sdl2/freetype handles the
+#   wasm link directly.
+DISABLE_FLAGS = USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1 WEBTILES= \
+                NO_NCURSES=YesPlease \
+                EXTRA_LIBS= \
+                BUILD_SQLITE= \
+                BUILD_SDL2= BUILD_SDL2IMAGE= BUILD_FREETYPE= BUILD_LIBPNG= \
+                NO_SDL_LIBS=YesPlease
+
+# 5. WASM tiles compile/link via the parent Makefile.
+# GAME=crawl_tiles.js — emcc determines output type from the extension; with
+# `.js` we get the JS glue file at crawl_tiles.js plus its wasm/data
+# companions. Without the extension emcc creates a node-shebanged file named
+# `crawl_tiles`, which the browser <script src=> can't load.
+# Listed first so it is the default goal when run as `make -f Makefile.emscripten-tiles`.
+crawl_tiles.js: host-rltiles
+	@echo "==> Building DCSS Tiles for WebAssembly..."
+	$(MAKE) -f Makefile crawl_tiles.js \
+		CXX="$(CXX)" \
+		CC="$(CC)" \
+		AR="$(AR)" \
+		RANLIB="$(RANLIB)" \
+		CFOTHERS="$(DEFINES)" \
+		EXTERNAL_LDFLAGS="$(EMCC_LDFLAGS)" \
+		BUILD_LUA=yes \
+		TILES=YesPlease \
+		GAME=crawl_tiles.js \
+		$(WASM_FONTS) \
+		$(DISABLE_FLAGS)
+
+# 6. Default target alias (still accepts `crawl_tiles` as a target name).
+all: crawl_tiles.js
+crawl_tiles: crawl_tiles.js
+
+# 7. Host rltiles — runs at build time, must be a real ELF executable.
+# rltiles/Makefile defaults HOSTCXX to g++ already; we pass it explicitly to
+# defend against any environment that might shadow it. ARCH=host is a sentinel
+# so the contrib-fallback in rltiles/Makefile (line 30) doesn't accidentally
+# point at contrib/install/$(ARCH)/lib/, which the parent emcc build may later
+# populate with WASM artifacts. With libpng-dev installed in the Dockerfile,
+# pkg-config succeeds and the ARCH fallback is unused anyway.
+host-rltiles:
+	@echo "==> Building rltiles with host toolchain..."
+	$(MAKE) -C rltiles all TILES=1 \
+		HOSTCXX=g++ \
+		CC=cc CXX=g++ AR=ar RANLIB=ranlib \
+		ARCH=host
+
+# 8. Clean only the tiles-specific outputs; leave ASCII artifacts alone.
+clean-tiles:
+	$(RM) crawl_tiles crawl_tiles.js crawl_tiles.wasm crawl_tiles.data
+
+.PHONY: crawl_tiles.js crawl_tiles all host-rltiles clean-tiles
