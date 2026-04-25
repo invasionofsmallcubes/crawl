@@ -219,5 +219,69 @@
     "Save game persistence requires IndexedDB via Emscripten IDBFS",
     "Input handling needs to bridge browser keyboard events to game",
     "No sound support in ASCII build (fine for this scope)"
-  ]
+  ],
+
+  "tiles_port": {
+    "status": "shipped",
+    "summary": "Tiles (graphical) WASM build, parallel to the ASCII target. End-to-end playable in a browser: chargen -> dungeon descent -> save/load survives tab reload via IDBFS. Native tiles build is untouched - every change is gated on __EMSCRIPTEN__ or lives in a parallel build file.",
+
+    "build_entry_point": "make -f Makefile.emscripten-tiles -j4",
+    "artifacts": ["crawl_tiles.js", "crawl_tiles.wasm", "crawl_tiles.data"],
+    "html_shell": "index_tiles.html (canvas-based; SDL2 emcc port reads Module.canvas and routes DOM keyboard/mouse events automatically)",
+
+    "additional_dependencies": {
+      "sdl2": "Emscripten port via --use-port=sdl2 (NOT contrib/sdl2 cross-compiled to WASM)",
+      "sdl2_image": "Emscripten port via --use-port=sdl2_image:formats=png",
+      "freetype": "Emscripten port via --use-port=freetype",
+      "libpng": "Emscripten port via --use-port=libpng (also pulls Emscripten's zlib transitively, so BUILD_ZLIB= is dropped to avoid wasm-ld symbol collisions)",
+      "idbfs": "-lidbfs.js explicit in newer Emscripten (no longer included by default)",
+      "host_libpng": "libpng-dev installed in Dockerfile so the rltiles host build can link tilegen.elf via pkg-config"
+    },
+
+    "gl_strategy": {
+      "approach": "GLES2/WebGL2 shader rewrite (not LEGACY_GL_EMULATION)",
+      "rationale": "DCSS's glwrapper-ogl.cc is GL 1.x fixed-function (glEnableClientState, glVertexPointer, glColor4f, matrix stack, glAlphaFunc) - none of which exist in WebGL. LEGACY_GL_EMULATION is a documented slow/buggy path; a small shader rewrite is faster and easier to debug.",
+      "implementation": "glwrapper-ogl.cc gains a #ifdef __EMSCRIPTEN__ path with two GLSL ES 3.00 programs (textured-modulated, untextured-colored), manual mat4 stack replacing PROJECTION/MODELVIEW, alpha test as a fragment-shader discard, dynamic VBO/IBO uploads in OGLShapeBuffer::draw. dcss_es2 namespace at the top of the file holds the helpers. Native fixed-function path stays under #else.",
+      "webgl_version": "MIN_WEBGL_VERSION=2 MAX_WEBGL_VERSION=2 (WebGL2 for NPOT textures + GLSL ES 3.00 / texture() builtin)"
+    },
+
+    "files_added": [
+      "crawl-ref/source/Makefile.emscripten-tiles - build harness, parallel to Makefile.emscripten",
+      "crawl-ref/source/index_tiles.html - canvas-based browser shell"
+    ],
+
+    "files_modified": {
+      "crawl-ref/source/Dockerfile": "added libpng-dev so the rltiles host build (system g++) can link tilegen.elf via pkg-config",
+      "crawl-ref/source/Makefile": "added a single new gate NO_SDL_LIBS that suppresses 'LIBS += -lSDL2_image $(SDL2_LDFLAGS) $(FREETYPE_LDFLAGS)' when libraries come from emcc ports rather than system or contrib",
+      "crawl-ref/source/glwrapper-ogl.cc": "GLES2 shader path under __EMSCRIPTEN__; extended GL_CLAMP guard to skip the legacy enum (defined by GLES3 headers but rejected at runtime by WebGL); guarded the SDL_GL_LoadLibrary mipmap probe out under Emscripten",
+      "crawl-ref/source/windowmanager-sdl.cc": "Emscripten guards on SDL_GetGlobalMouseState (single display assumed), the RESIZABLE/HIGHDPI/FULLSCREEN window flags, set_window_icon (no-op), set_mouse_cursor (no-op), clipboard get/has (stubs)",
+      "crawl-ref/source/fs_init.js": "fixed IDBFS mount paths to /crawl/saves and /crawl/morgue (DCSS runs with -dir /crawl, so its actual save paths are nested - the previous /saves and /morgue mounts never intercepted writes)"
+    },
+
+    "host_tool_handling": {
+      "rltiles": "Built with the host g++ via the host-rltiles target before invoking the emcc parent build. Generates dat/tiles/*.png (sprite sheets) and tiledef-*.{h,cc} (tile index headers/sources) at build time. The parent Makefile re-runs build-rltiles too, but with libpng-dev installed it links cleanly via pkg-config without needing the contrib path.",
+      "critical": "NO_PKGCONFIG must NOT be set on the parent Makefile invocation. With NO_PKGCONFIG=YesPlease, rltiles falls back to contrib/install/$(ARCH)/lib/libpng.a where $(ARCH) is wasm32-unknown-emscripten under emcc - a path we don't populate, so host link of tilegen.elf fails."
+    },
+
+    "compile_AND_link_flags": "EMCC_PORT_FLAGS (--use-port=sdl2/sdl2_image/freetype/libpng) MUST be present at BOTH compile and link stages. Compile-time activates the SDL2 port headers (without it, fakesdl/SDL_keycode.h #errors out). The build harness passes them via DEFINES (CFOTHERS) and EMCC_LDFLAGS.",
+
+    "deferred_features": [
+      "Audio: USE_SOUND= stays empty (browser autoplay policies; not core to playability)",
+      "Mouse picking / click-to-attack: SDL events flow but click-to-move is disabled",
+      "Window resize / fullscreen toggle: stripped via flag mask",
+      "Hi-DPI scaling: SDL_WINDOW_ALLOW_HIGHDPI stripped",
+      "Custom mouse cursors: no-op",
+      "System clipboard integration: stubbed",
+      "Mipmaps under WebGL: SDL_GL_LoadLibrary probe guarded out; not load-bearing visually"
+    ],
+
+    "asset_size": {
+      "crawl_tiles.js": "~390 KB",
+      "crawl_tiles.wasm": "~24 MB",
+      "crawl_tiles.data": "~30 MB (preloaded dat/ + contrib/fonts/)",
+      "total_cold_load": "~54 MB"
+    },
+
+    "font_path_handling": "PROPORTIONAL_FONT and MONOSPACED_FONT are passed as Make variables (not -D defines) so the parent Makefile (lines 1011-1031) emits its own -DPROPORTIONAL_FONT=\"...\" pointing at /fonts/DejaVuSans.ttf and /fonts/DejaVuSansMono.ttf. The fonts themselves are bundled from contrib/fonts/ via --preload-file contrib/fonts@/fonts. Without the Make-variable approach, the parent runs util/find_font and resolves to /usr/share/fonts/truetype/dejavu/* which doesn't exist in the WASM MEMFS."
+  }
 }
