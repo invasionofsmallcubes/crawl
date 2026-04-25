@@ -137,6 +137,19 @@ makefile.dep
 /source/crawl
 /source/crawl-tiles
 
+# WASM/Emscripten build outputs (ASCII + tiles targets)
+/source/crawl.js
+/source/crawl.wasm
+/source/crawl.data
+/source/crawl_tiles.js
+/source/crawl_tiles.wasm
+/source/crawl_tiles.data
+/source/dcss_ascii.js
+/source/dcss_ascii.wasm
+
+# Python virtualenv used by build helpers
+/source/.venv/
+
 # Precompiled header
 /source/AppHdr.h.gch
 
