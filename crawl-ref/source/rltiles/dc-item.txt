@@ -71,7 +71,7 @@ eveningstar3 WPN_EVENINGSTAR_RANDART
 hammer1 WPN_HAMMER
 %enchant_variation WPN_HAMMER shiny runed glowing
 hammer2 WPN_HAMMER_MAGIC
-%enchant_variation WPN_HAMMER shiny runed glowing randart
+%enchant_variation WPN_HAMMER randart
 hammer3 WPN_HAMMER_RANDART
 bullwhip WPN_WHIP
 %enchant_variation WPN_WHIP shiny runed glowing
@@ -111,6 +111,11 @@ rapier1 WPN_RAPIER
 rapier2 WPN_RAPIER_MAGIC
 %enchant_variation WPN_RAPIER randart
 rapier3 WPN_RAPIER_RANDART
+athame1 WPN_ATHAME
+%enchant_variation WPN_ATHAME shiny runed glowing
+athame2 WPN_ATHAME_MAGIC
+%enchant_variation WPN_ATHAME randart
+athame3 WPN_ATHAME_RANDART
 quickblade1 WPN_QUICK_BLADE
 %enchant_variation WPN_QUICK_BLADE shiny runed glowing
 quickblade2 WPN_QUICK_BLADE_MAGIC

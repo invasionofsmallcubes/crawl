@@ -57,6 +57,7 @@
 #include "mon-poly.h"
 #include "mon-tentacle.h"
 #include "mon-transit.h"
+#include "movement.h"
 #include "notes.h"
 #include "ouch.h"
 #include "player-notices.h"
@@ -499,7 +500,7 @@ item_def *monster::weapon(int which_attack) const
 
     // Draugr can only use their weapon for their doom attack and not any other
     // hit attack the monster they're derived from may have.
-    if (type == MONS_DRAUGR && which_attack != 0)
+    if (type == MONS_DRAUGR && which_attack > 0)
         return nullptr;
 
     // Even/odd attacks use main/offhand weapon.
@@ -3005,22 +3006,6 @@ int monster::off_level_regen_rate() const
     return max(natural_regen_rate() * 4, 10);
 }
 
-bool monster::friendly() const
-{
-    return temp_attitude() == ATT_FRIENDLY;
-}
-
-bool monster::neutral() const
-{
-    const mon_attitude_type att = temp_attitude();
-    return att == ATT_NEUTRAL || att == ATT_GOOD_NEUTRAL;
-}
-
-bool monster::good_neutral() const
-{
-    return temp_attitude() == ATT_GOOD_NEUTRAL;
-}
-
 bool monster::wont_attack() const
 {
     return friendly() || good_neutral() || attitude == ATT_MARIONETTE;
@@ -4001,6 +3986,9 @@ int monster::willpower() const
     if (has_ench(ENCH_LOWERED_WL))
         u /= 2;
 
+    if (has_ench(ENCH_EXPOSED))
+        u -= 30;
+
     if (u < 0)
         u = 0;
 
@@ -4237,7 +4225,8 @@ void monster::splash_with_acid(actor* evildoer)
 
 int monster::hurt(const actor *agent, int amount, beam_type flavour,
                    kill_method_type kill_type, string /*source*/,
-                   string /*aux*/, bool cleanup_dead, bool attacker_effects)
+                   string /*aux*/, bool cleanup_dead, bool attacker_effects,
+                   bool is_attack_damage)
 {
     // Nothing can be injured while simulating monster movements.
     if (you.doing_monster_catchup)
@@ -4257,15 +4246,12 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
 
     if (alive())
     {
-        if (amount != INSTANT_DEATH)
-        {
-            if (petrified())
-                amount /= 2;
-            else if (petrifying())
-                amount = amount * 2 / 3;
-        }
+        if (petrified())
+            amount /= 2;
+        else if (petrifying())
+            amount = amount * 2 / 3;
 
-        if (amount != INSTANT_DEATH && has_ench(ENCH_INJURY_BOND))
+        if (has_ench(ENCH_INJURY_BOND))
         {
             actor* guardian = get_ench(ENCH_INJURY_BOND).agent();
             if (guardian && guardian->alive() && mons_aligned(guardian, this))
@@ -4280,34 +4266,30 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
             }
         }
 
-        if (amount == INSTANT_DEATH)
-            amount = hit_points;
-        else if (get_hit_dice() <= 0)
-            amount = hit_points;
-        else if (amount <= 0 && hit_points <= max_hit_points)
+        if (amount <= 0)
             return 0;
 
         // Apply damage multipliers for harm
-        if (amount != INSTANT_DEATH)
+        // +30% damage if opp has one level of harm, +45% with two
+        if (agent && agent->extra_harm())
         {
-            // +30% damage if opp has one level of harm, +45% with two
-            if (agent && agent->extra_harm())
-            {
-                amount = amount * (100
-                                   + outgoing_harm_amount(agent->extra_harm()))
-                         / 100;
-            }
-            // +20% damage if you have one level of harm, +30% with two
-            else if (extra_harm())
-            {
-                amount = amount * (100 + incoming_harm_amount(extra_harm()))
-                         / 100;
-            }
+            amount = amount * (100
+                                + outgoing_harm_amount(agent->extra_harm()))
+                        / 100;
+        }
+        // +20% damage if you have one level of harm, +30% with two
+        else if (extra_harm())
+        {
+            amount = amount * (100 + incoming_harm_amount(extra_harm()))
+                        / 100;
         }
 
         // Apply damage multiplier for vitrify
-        if (amount != INSTANT_DEATH && has_ench(ENCH_VITRIFIED))
+        if (has_ench(ENCH_VITRIFIED))
             amount = amount * 150 / 100;
+
+        if (!is_attack_damage && has_ench(ENCH_EXPOSED) && kill_type != KILLED_BY_POISON)
+            amount = amount * 135 / 100;
 
         // Apply damage multipliers for quad damage
         if (attacker_effects && agent && agent->is_player()
@@ -4320,8 +4302,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
         }
 
         // Apply damage multiplier from Vessel of Slaughter
-        if (amount != INSTANT_DEATH && agent && agent->is_player()
-            && you.form == transformation::slaughter)
+        if (agent && agent->is_player() && you.form == transformation::slaughter)
         {
             amount = amount * (100 + you.props[MAKHLEB_SLAUGHTER_BOOST_KEY].get_int())
                             / 100;
@@ -4329,12 +4310,6 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
 
         amount = min(amount, hit_points);
         hit_points -= amount;
-
-        if (hit_points > max_hit_points)
-        {
-            amount    += hit_points - max_hit_points;
-            hit_points = max_hit_points;
-        }
 
         if (flavour == BEAM_DESTRUCTION || flavour == BEAM_MINDBURST)
         {
@@ -4581,38 +4556,36 @@ void monster::uglything_mutate(colour_t force_colour)
 }
 
 /**
- * Check whether a given trap (described by trap position) can be
- * regarded as safe. Takes into account monster allegiance.
+ * Check whether a given location contains a trap that this monster would be
+ * unwilling to enter.
  *
  * @param where       The square to be checked for dangerous traps.
  * @return            Whether the monster will willingly enter the square.
  */
 bool monster::is_trap_safe(const coord_def& where) const
 {
-    const trap_def *ptrap = trap_at(where);
-    if (!ptrap)
+    // Hostile monsters are not afraid of traps. (But non-hostile ones may
+    // give some consideration to the player).
+    if (!wont_attack())
         return true;
-    const trap_def& trap = *ptrap;
 
-    // Known shafts are safe.
-    if (trap.type == TRAP_SHAFT)
+    const dungeon_feature_type feat = env.grid(where);
+    if (!feat_is_trap(feat))
         return true;
 
     // No friendly or good neutral monsters will ever enter a trap that harms
     // the player when triggered.
-    if (wont_attack() && trap.is_bad_for_player())
+    if (trap_is_bad_for_player(feat))
         return false;
 
     // Friendlies will try not to be parted from you.
     if (friendly() && can_see(you)
-        && (trap.type == TRAP_TELEPORT || trap.type == TRAP_TELEPORT_PERMANENT))
+        && (feat == DNGN_TRAP_TELEPORT || feat == DNGN_TRAP_TELEPORT_PERMANENT))
     {
         return false;
     }
 
-    // Hostile monsters are not afraid of traps.
-    // But, in the arena Zot traps affect all monsters.
-    return !crawl_state.game_is_arena() || trap.type != TRAP_ZOT;
+    return true;
 }
 
 bool monster::is_cloud_safe(const coord_def &place) const
@@ -5409,13 +5382,21 @@ void monster::self_destruct()
  */
 bool monster::move_to(const coord_def& newpos, movement_type mvflags, bool defer_finalisation)
 {
-    const actor* a = actor_at(newpos);
+    actor* a = actor_at(newpos);
     if (a
         // When doing manual mgrid updating, assume ovelaps with other monsters are expected.
         && !(mvflags & MV_NO_MGRID_UPDATE)
         && !(a->is_player() && (fedhas_passthrough(this) || testbits(mvflags, MV_ALLOW_OVERLAP))))
     {
-        return false;
+        // Thorn hunters can step 'onto' their own briars as part of their movement
+        // (which removes them), but other overlaps should not happen
+        if (type == MONS_THORN_HUNTER && a->type == MONS_BRIAR_PATCH && a->was_created_by(*this)
+            && (mvflags & MV_DELIBERATE))
+        {
+            monster_die(*a->as_monster(), KILL_RESET, NON_MONSTER);
+        }
+        else
+            return false;
     }
 
     // Store current position for later finalisation (but if we have been moved
@@ -5613,12 +5594,17 @@ void monster::finalise_movement(const actor* to_blame)
 
     // Trigger traps last (since they could cause movement that might affect
     // some of the rest of this).
-    trap_def* ptrap = trap_at(pos());
-    if (ptrap && (ptrap->type != TRAP_GOLUBRIA || !(last_move_flags & MV_GOLUBRIA)))
-        ptrap->trigger(*this);
+    if (last_move_pos != pos() && feat_is_trap(env.grid(pos()))
+        && (env.grid(pos()) != DNGN_PASSAGE_OF_GOLUBRIA || !(last_move_flags & MV_GOLUBRIA)))
+    {
+        trigger_trap(*this);
+    }
 
     maybe_notice_monster(*this, (last_move_flags & MV_DELIBERATE)
                                     && !(last_move_flags & MV_TRANSLOCATION));
+
+    if (you.did_east_wind && grid_distance(pos(), you.pos()) <= 2 && grid_distance(last_move_pos, you.pos()) > 2)
+        east_wind_expose_monster(this);
 
     clear_deferred_move();
 }
@@ -5681,14 +5667,6 @@ bool monster::do_shaft()
     // Tentacles are immune to shafting
     if (mons_is_tentacle_or_tentacle_segment(type))
         return false;
-
-    // Handle instances of do_shaft() being invoked magically when
-    // the monster isn't standing over a shaft.
-    if (get_trap_type(pos()) != TRAP_SHAFT
-        && !feat_is_shaftable(env.grid(pos())))
-    {
-        return false;
-    }
 
     level_id lev = shaft_dest();
 
@@ -6037,7 +6015,7 @@ void monster::react_to_damage(const actor *oppressor, int damage,
         }
     }
     // Using diminished magic as a thematically-appropriate cooldown
-    else if (type == MONS_STAR_JELLY & !has_ench(ENCH_DIMINISHED_SPELLS)
+    else if (type == MONS_STAR_JELLY && !has_ench(ENCH_DIMINISHED_SPELLS)
              && mons_get_damage_level(*this) >= MDAM_SEVERELY_DAMAGED)
     {
         add_ench(mon_enchant(ENCH_DIMINISHED_SPELLS, this, random_range(500, 650)));
@@ -6170,6 +6148,8 @@ void monster::react_to_damage(const actor *oppressor, int damage,
             props[EMERGENCY_CLONE_KEY].get_bool() = true;
         }
     }
+    else if (type == MONS_THORN_HUNTER)
+        thorn_hunter_raise_barrier(*this, true);
 
     else if (type == MONS_BAI_SUZHEN && hit_points < max_hit_points * 2 / 3
                                      && hit_points - damage > 0)

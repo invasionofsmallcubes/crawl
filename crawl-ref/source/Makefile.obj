@@ -95,6 +95,7 @@ jobs.o \
 json.o \
 kills.o \
 known-items.o \
+l-autofight.o \
 l-colour.o \
 l-crawl.o \
 l-debug.o \
@@ -567,7 +568,6 @@ timed-effect-type.h.o \
 torment-source-type.h.o \
 transformation.h.o \
 transform.h.o \
-trap-type.h.o \
 travel-defs.h.o \
 tutorial.h.o \
 uncancel.h.o \

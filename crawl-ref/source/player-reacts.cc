@@ -475,7 +475,7 @@ static void _handle_hoarding()
 {
     if (you.has_mutation(MUT_RENOUNCE_POTIONS))
     {
-        if (you.hp < you.hp_max / 2)
+        if (2 * you.hp < you.hp_max)
             you.props.erase(RENOUNCE_POTIONS_TIMER_KEY);
         else if (there_are_monsters_nearby(true, true, false))
             you.props[RENOUNCE_POTIONS_TIMER_KEY].get_int() = you.elapsed_time + 60;
@@ -485,7 +485,7 @@ static void _handle_hoarding()
 
     if (you.has_mutation(MUT_RENOUNCE_SCROLLS))
     {
-        if (you.hp <= you.hp_max / 2)
+        if (2 * you.hp < you.hp_max)
             you.props.erase(RENOUNCE_SCROLLS_TIMER_KEY);
         else if (there_are_monsters_nearby(true, true, false))
             you.props[RENOUNCE_SCROLLS_TIMER_KEY].get_int() = you.elapsed_time + 60;
@@ -695,16 +695,6 @@ static void _decrement_transform_duration(int delay)
     }
 }
 
-static void _decrement_rampage_heal_duration(int delay)
-{
-    const int heal = you.props[RAMPAGE_HEAL_KEY].get_int();
-    if (heal > 0 && _decrement_a_duration(DUR_RAMPAGE_HEAL, delay))
-    {
-        you.props[RAMPAGE_HEAL_KEY] = heal - 1;
-        reset_rampage_heal_duration();
-    }
-}
-
 static void _handle_trickster_decay(int delay)
 {
     if (you.duration[DUR_TRICKSTER_GRACE] || delay == 0)
@@ -807,7 +797,11 @@ static void _decrement_durations()
         reset_powered_by_death_duration();
     }
 
-    _decrement_rampage_heal_duration(delay);
+    if (_decrement_a_duration(DUR_SALVO, delay))
+    {
+        if (--you.props[SALVO_KEY].get_int() > 0)
+            you.duration[DUR_SALVO] = random_range(20, 40);
+    }
 
     dec_ambrosia_player(delay);
     dec_channel_player(delay);
@@ -1206,14 +1200,19 @@ static void _regenerate_hp_and_mp(int delay)
     if (crawl_state.disables[DIS_PLAYER_REGEN])
         return;
 
-    const int old_hp = you.hp;
-    const int old_mp = you.magic_points;
-
     // HP Regeneration
     if (!you.duration[DUR_DEATHS_DOOR])
     {
         const int base_val = player_regen();
         you.hit_points_regeneration += div_rand_round(base_val * delay, BASELINE_DELAY);
+    }
+
+    if (you.duration[DUR_INDOMITABLE])
+    {
+        const int per_aut = player_indomitable_regen_rate();
+        const int total = min(per_aut * delay, you.duration[DUR_INDOMITABLE]);
+        you.duration[DUR_INDOMITABLE] -= total;
+        you.hit_points_regeneration += total;
     }
 
     while (you.hit_points_regeneration >= 100)
@@ -1293,6 +1292,9 @@ void player_reacts()
     if (crawl_state.game_is_descent() && !env.properties.exists(DESCENT_STAIRS_KEY))
         return;
 
+    if (you.did_east_wind > 0)
+        --you.did_east_wind;
+
     // This happens as close as possible after the player acts, for better messaging
     if (you_worship(GOD_BEOGH))
         beogh_ally_healing();
@@ -1343,9 +1345,6 @@ void player_reacts()
         you.props.erase(BLASTMOTE_IMMUNE_KEY);
 
     actor_apply_toxic_bog(&you);
-
-    if (you.duration[DUR_SPIKE_LAUNCHER_ACTIVE])
-        handle_spike_launcher(you.time_taken);
 
     if (you.duration[DUR_RIME_YAK_AURA])
         frigid_walls_damage(you.time_taken);

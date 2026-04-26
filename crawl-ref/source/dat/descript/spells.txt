@@ -259,6 +259,12 @@ Brothers in Arms spell
 
 <Brothers in Arms ability>
 %%%%
+Cage of Brambles spell
+
+Causes walls of thorny brambles to grow rapidly in a ring around all nearby
+enemies. The caster's allies may fire projectiles through these briars without
+hinderance, but anyone else may find removing them rather painful.
+%%%%
 Call Canine Familiar spell
 
 Summons an inugami to the caster's aid. These mystical canines form a bond with
@@ -2221,9 +2227,10 @@ Summon Tzitzimitl spell
 
 Summons a tzitzimitl, a demon of disease and despair.
 %%%%
-Summon Ufetubus spell
+Ufetubi Swarm spell
 
-Summons multiple ufetubi; small, annoying demons.
+Summons a group of berserk ufetubi; irksome minor demons who will rapidly swarm
+and surround the caster's enemies.
 %%%%
 Summon Undead spell
 
@@ -2382,12 +2389,6 @@ sight but not line of fire.
 Volley of Thorns spell
 
 Launches a small hail of sharp thorns.
-%%%%
-Wall of Brambles spell
-
-Causes brambles to rapidly grow nearby. They have almost no structural
-strength, but the wicked thorns they bear make their removal difficult. Such
-brambles are sparse enough that almost any missile can pass through unhindered.
 %%%%
 Warning Cry spell
 

@@ -97,8 +97,6 @@ static bool _builder_normal();
 static void _builder_items();
 static void _builder_monsters();
 static coord_def _place_specific_feature(dungeon_feature_type feat);
-static void _place_specific_trap(const coord_def& where, trap_spec* spec,
-                                 int charges = 0);
 static void _place_branch_entrances(bool use_vaults);
 static void _place_extra_vaults();
 static void _place_chance_vaults();
@@ -572,7 +570,6 @@ void dgn_place_transporter(const coord_def &pos, const coord_def &dest)
     ASSERT(pos != dest);
 
     env.markers.add(new map_position_marker(pos, DNGN_TRANSPORTER, dest));
-    env.markers.clear_need_activate();
     dungeon_terrain_changed(pos, DNGN_TRANSPORTER, false, true);
     dungeon_terrain_changed(dest, DNGN_TRANSPORTER_LANDING, false, true);
 }
@@ -901,12 +898,8 @@ bool dgn_square_travel_ok(const coord_def &c)
 {
     // the mimic check here relies on full placement operating, e.g. not &L
     const dungeon_feature_type feat = feat_at_no_mimic(c);
-    if (feat_is_trap(feat))
-    {
-        const trap_def * const trap = trap_at(c);
-        return !(trap && (trap->type == TRAP_TELEPORT_PERMANENT
-                          || trap->type == TRAP_DISPERSAL));
-    }
+    if (feat == DNGN_TRAP_TELEPORT_PERMANENT || feat == DNGN_TRAP_DISPERSAL)
+        return false;
     else
         return feat_is_traversable(feat);
 }
@@ -1566,9 +1559,6 @@ void dgn_reset_level(bool enable_random_maps)
     env.map_knowledge.init(map_cell());
     env.map_forgotten.reset();
     env.map_seen.reset();
-
-    // Delete all traps.
-    env.trap.clear();
 
     // Initialise all items.
     for (int i = 0; i < MAX_ITEMS; i++)
@@ -2240,10 +2230,11 @@ static bool _add_connecting_escape_hatches()
     if (branches[you.where_are_you].branch_flags & brflag::islanded)
         return true;
 
-    // Veto D:1 or Pan if there are disconnected areas.
-    // Veto any  non-abyss descent level with disconnected areas
+    // Veto D:1, Elf:2 (for Blade), or Pan if there are disconnected areas.
+    // Veto any non-abyss descent level with disconnected areas, too.
     if (player_in_branch(BRANCH_PANDEMONIUM)
         || (player_in_branch(BRANCH_DUNGEON) && you.depth == 1)
+        || (player_in_branch(BRANCH_ELF) && you.depth == 2)
         || (crawl_state.game_is_descent() && !player_in_branch(BRANCH_ABYSS)))
     {
         // Allow == 0 in case the entire level is one opaque vault.
@@ -3555,7 +3546,6 @@ static bool _builder_normal()
 
 static void _place_traps()
 {
-
     int num_traps = random2avg(2 * trap_rate_for_place(), 2);
 
     // Snake and Vaults don't have a lot of unique terrain types or open
@@ -3571,19 +3561,19 @@ static void _place_traps()
 
     for (int i = 0; i < num_traps; i++)
     {
-        trap_def ts;
+        coord_def pos;
 
         int tries;
         for (tries = 0; tries < 200; ++tries)
         {
-            ts.pos.x = random2(GXM);
-            ts.pos.y = random2(GYM);
+            pos.x = random2(GXM);
+            pos.y = random2(GYM);
             // Don't place random traps under vault monsters; if a vault
             // wants this they have to request it specifically.
-            if (in_bounds(ts.pos)
-                && env.grid(ts.pos) == DNGN_FLOOR
-                && !map_masked(ts.pos, MMT_NO_TRAP)
-                && env.mgrid(ts.pos) == NON_MONSTER)
+            if (in_bounds(pos)
+                && env.grid(pos) == DNGN_FLOOR
+                && !map_masked(pos, MMT_NO_TRAP)
+                && env.mgrid(pos) == NON_MONSTER)
             {
                 break;
             }
@@ -3597,19 +3587,15 @@ static void _place_traps()
 
         // Don't place dispersal traps in opaque vaults, they won't
         // be later checked for connectivity and we might break them.
-        const trap_type type = random_trap_for_place(
-                                   !map_masked(ts.pos, MMT_OPAQUE));
-        if (type == NUM_TRAPS)
+        const dungeon_feature_type type = random_trap_for_place(!map_masked(pos, MMT_OPAQUE));
+        if (type == DNGN_FLOOR)
         {
             dprf("failed to find a trap type to place");
             continue;
         }
 
-        ts.type = type;
-        env.grid(ts.pos) = ts.feature();
-        ts.prepare_ammo();
-        env.trap[ts.pos] = ts;
-        dprf("placed %s trap", article_a(trap_name(type)).c_str());
+        env.grid(pos) = type;
+        dprf("placed %s trap", article_a(dungeon_feature_name(type)).c_str());
     }
 
     if (player_in_branch(BRANCH_SPIDER))
@@ -4518,7 +4504,6 @@ const vault_placement *dgn_place_map(const map_def *mdef,
             if (!you.see_cell(p))
                 set_terrain_changed(p);
         }
-        env.markers.clear_need_activate();
 
         setup_environment_effects();
         _dgn_postprocess_level();
@@ -5594,14 +5579,7 @@ dungeon_feature_type map_feature_at(map_def *map, const coord_def &c,
     if (mapsp)
     {
         feature_spec f = mapsp->get_feat();
-        if (f.trap)
-        {
-            if (f.trap->tr_type >= NUM_TRAPS)
-                return DNGN_FLOOR;
-            else
-                return trap_feature(f.trap->tr_type);
-        }
-        else if (f.feat >= 0)
+        if (f.feat >= 0)
             return static_cast<dungeon_feature_type>(f.feat);
         else if (f.glyph >= 0)
             return map_feature_at(nullptr, c, f.glyph);
@@ -5618,10 +5596,18 @@ static void _vault_grid_mapspec(vault_placement &place, const coord_def &where,
                                 keyed_mapspec& mapsp)
 {
     const feature_spec f = mapsp.get_feat();
-    if (f.trap)
-        _place_specific_trap(where, f.trap.get(), 0);
-    else if (f.feat >= 0)
-        env.grid(where) = static_cast<dungeon_feature_type>(f.feat);
+    if (f.feat >= 0)
+    {
+        if (f.feat == DNGN_TRAP_SHAFT && !is_valid_shaft_level())
+        {
+            mprf(MSGCH_ERROR, "%s%s tried to place a shaft at a branch end.",
+                    env.placing_vault.empty() ? "Something" : "Vault ",
+                    env.placing_vault.c_str());
+            env.grid(where) = DNGN_FLOOR;
+        }
+        else
+            env.grid(where) = static_cast<dungeon_feature_type>(f.feat);
+    }
     else if (f.glyph >= 0)
         _vault_grid_glyph(place, where, f.glyph);
     else if (f.shop)
@@ -5664,7 +5650,7 @@ static void _vault_grid_glyph(vault_placement &place, const coord_def& where,
             place.exits.push_back(where);
         break;
     case '^':
-        place_specific_trap(where, TRAP_RANDOM);
+        env.grid(where) = random_trap_for_place();
         break;
     case 'B':
         env.grid(where) = _pick_temple_altar();
@@ -5805,32 +5791,20 @@ bool seen_destroy_feat(dungeon_feature_type old_feat)
 void dgn_replace_area(int sx, int sy, int ex, int ey,
                       dungeon_feature_type replace,
                       dungeon_feature_type feature,
-                      unsigned mmask, bool needs_update)
+                      unsigned mmask)
 {
     dgn_replace_area(coord_def(sx, sy), coord_def(ex, ey),
-                      replace, feature, mmask, needs_update);
+                      replace, feature, mmask);
 }
 
 void dgn_replace_area(const coord_def& p1, const coord_def& p2,
                        dungeon_feature_type replace,
-                       dungeon_feature_type feature, uint32_t mapmask,
-                       bool needs_update)
+                       dungeon_feature_type feature, uint32_t mapmask)
 {
     for (rectangle_iterator ri(p1, p2); ri; ++ri)
     {
         if (env.grid(*ri) == replace && !map_masked(*ri, mapmask))
-        {
             env.grid(*ri) = feature;
-            if (needs_update && env.map_knowledge(*ri).seen())
-            {
-                env.map_knowledge(*ri).set_feature(feature, 0,
-                                                   get_trap_type(*ri));
-#ifdef USE_TILE
-                // XXX: this will not be the correct tile for the feature...
-                tile_env.bk_bg(*ri) = feature;
-#endif
-            }
-        }
     }
 }
 
@@ -6590,45 +6564,6 @@ static bool _connect_spotty(const coord_def& from,
     return !spotty_path.empty();
 }
 
-void place_specific_trap(const coord_def& where, trap_type spec_type, int charges)
-{
-    trap_spec spec(spec_type);
-
-    _place_specific_trap(where, &spec, charges);
-}
-
-static void _place_specific_trap(const coord_def& where, trap_spec* spec,
-                                 int charges)
-{
-    trap_type spec_type = spec->tr_type;
-
-    if (spec_type == TRAP_SHAFT && !is_valid_shaft_level())
-    {
-        mprf(MSGCH_ERROR, "%s%s tried to place a shaft at a branch end.",
-                env.placing_vault.empty() ? "Something" : "Vault ",
-                env.placing_vault.c_str());
-    }
-
-    // find an appropriate trap for TRAP_RANDOM
-    if (spec_type == TRAP_RANDOM)
-    {
-        do
-        {
-            spec_type = static_cast<trap_type>(random2(NUM_TRAPS));
-        }
-        while (!is_regular_trap(spec_type)
-               || !is_valid_shaft_level() && spec_type == TRAP_SHAFT);
-    }
-
-    trap_def t;
-    t.type = spec_type;
-    t.pos = where;
-    env.grid(where) = trap_feature(spec_type);
-    t.prepare_ammo(charges);
-    env.trap[where] = t;
-    dprf("placed %s trap", article_a(trap_name(spec_type)).c_str());
-}
-
 /**
  * Sprinkle plants around the level.
  *
@@ -6734,10 +6669,7 @@ static coord_def _get_feat_dest(coord_def base_pos, dungeon_feature_type feat,
         }
 
         if (!shaft)
-        {
             env.markers.add(new map_position_marker(base_pos, feat, dest_pos));
-            env.markers.clear_need_activate();
-        }
         return dest_pos;
     }
     else
@@ -7563,9 +7495,7 @@ static dungeon_feature_type _vault_inspect_mapspec(vault_placement &place,
     UNUSED(place);
     dungeon_feature_type found = NUM_FEATURES;
     const feature_spec f = mapsp.get_feat();
-    if (f.trap)
-        found = trap_feature(f.trap->tr_type);
-    else if (f.feat >= 0)
+    if (f.feat >= 0)
         found = static_cast<dungeon_feature_type>(f.feat);
     else if (f.glyph >= 0)
         found = _vault_inspect_glyph(f.glyph);

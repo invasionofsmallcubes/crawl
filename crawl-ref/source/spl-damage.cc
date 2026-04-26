@@ -1546,7 +1546,7 @@ spret cast_fragmentation(int pow, const actor *caster,
         mprf("You shatter%s", attack_strength_punctuation(dam).c_str());
 
         ouch(dam, KILLED_BY_BEAM, caster->mid,
-             "by Lee's Rapid Deconstruction", true,
+             "by Lee's Rapid Deconstruction",
              caster->is_player() ? "you"
                                  : caster->name(DESC_A).c_str());
     }
@@ -2320,8 +2320,7 @@ static int _ignite_poison_player(coord_def where, int pow, actor *agent)
         mpr("The poison in your system burns!");
 
     ouch(damage, KILLED_BY_BEAM, agent->mid,
-         "by burning poison", you.can_see(*agent),
-         agent->as_monster()->name(DESC_A, true).c_str());
+         "by burning poison", agent->as_monster()->name(DESC_A, true).c_str());
     if (damage > 0)
         you.expose_to_element(BEAM_FIRE, 2);
 
@@ -2669,7 +2668,7 @@ static int _discharge_monsters(const coord_def &where, int pow,
                                         "static discharge");
             mprf("You are struck by an arc of lightning%s",
                 attack_strength_punctuation(damage).c_str());
-            ouch(damage, KILLED_BY_BEAM, agent.mid, "by static electricity", true,
+            ouch(damage, KILLED_BY_BEAM, agent.mid, "by static electricity",
                 agent.is_player() ? "you" : agent.name(DESC_A).c_str());
             if (damage > 0)
                 victim->expose_to_element(BEAM_ELECTRICITY, 2);
@@ -3106,8 +3105,8 @@ vector<coord_def> plasma_beam_targets(const actor &agent, int pow, bool actual)
     return targets;
 }
 
-static ai_action::goodness _fire_plasma_beam_at(const actor &agent, int pow,
-                                                coord_def target, bool is_tracer)
+static targeting_tracer _fire_plasma_beam_at(const actor &agent, int pow,
+                                             coord_def target, bool is_tracer)
 {
     int range = grid_distance(agent.pos(), target);
     const bool mon = agent.is_monster();
@@ -3122,7 +3121,6 @@ static ai_action::goodness _fire_plasma_beam_at(const actor &agent, int pow,
     beam.attitude     = mon ? mons_attitude(*agent.as_monster()) : ATT_FRIENDLY;
     beam.origin_spell = SPELL_PLASMA_BEAM;
     beam.draw_delay   = 5;
-    beam.foe_ratio    = 80; // default
     targeting_tracer tracer;
     zappy(ZAP_PLASMA_LIGHTNING, pow, mon, beam);
     if (is_tracer)
@@ -3140,7 +3138,7 @@ static ai_action::goodness _fire_plasma_beam_at(const actor &agent, int pow,
     else
         beam.fire();
 
-    return tracer.good_to_fire(beam.foe_ratio);
+    return tracer;
 }
 
 bool mons_should_fire_plasma(int pow, const actor &agent)
@@ -3149,7 +3147,9 @@ bool mons_should_fire_plasma(int pow, const actor &agent)
     bool ever_good = false;
     for (auto target : targets)
     {
-        const ai_action::goodness result = _fire_plasma_beam_at(agent, pow, target, true);
+        int foe_ratio = 80; // default
+        const ai_action::goodness result = _fire_plasma_beam_at(
+            agent, pow, target, true).good_to_fire(foe_ratio);
         if (result == ai_action::bad())
             return false; // be very careful!
         if (result == ai_action::good())
@@ -3158,8 +3158,22 @@ bool mons_should_fire_plasma(int pow, const actor &agent)
     return ever_good;
 }
 
-spret cast_plasma_beam(int pow, const actor &agent, bool fail)
+spret cast_plasma_beam(int pow, const actor &agent, bool fail, bool is_tracer)
 {
+    if (is_tracer)
+    {
+        vector<coord_def> known_targs = plasma_beam_targets(agent, pow, false);
+        for (coord_def target : known_targs)
+        {
+            const targeting_tracer tracer = _fire_plasma_beam_at(agent, pow, target, true);
+            if (tracer.foe_info.count > 0)
+                return spret::success;
+        }
+
+        // Didn't find any susceptible targets
+        return spret::abort;
+    }
+
     if (agent.is_player())
     {
         vector<coord_def> known_targs = plasma_beam_targets(agent, pow, false);
@@ -3588,7 +3602,7 @@ void toxic_radiance_effect(actor* agent, int mult, bool on_cast)
             if (!agent->is_player())
             {
                 ouch(dam, KILLED_BY_BEAM, agent->mid,
-                    "by Olgreb's Toxic Radiance", true,
+                    "by Olgreb's Toxic Radiance",
                     agent->as_monster()->name(DESC_A).c_str());
 
                 int poison = roll_dice(2, 3 + div_rand_round(pow, 24));
@@ -4101,7 +4115,7 @@ spret cast_starburst(int pow, bool fail, bool is_tracer)
         fire_partial_player_tracer(ZAP_BOLT_OF_FIRE, pow, tracer, beam);
     }
 
-    if (cancel_beam_prompt(beam, tracer, 8))
+    if (cancel_beam_prompt(beam, tracer))
         return spret::abort;
 
     fail_check();
@@ -4402,42 +4416,41 @@ dice_def toxic_bog_damage()
     return dice_def(4, 6);
 }
 
+static bool _bog_can_affect(const actor *caster, const actor *target)
+{
+    if (target->airborne())
+        return false;
+
+    if (caster && !could_harm(caster, target))
+        return false;
+
+    const bool player = target->is_player();
+    if (player)
+        return !you.duration[DUR_NOXIOUS_BOG] && !you.can_water_walk();
+
+    const monster *mons = target->as_monster();
+    return mons
+           && mons->type != MONS_FENSTRIDER_WITCH  // stilting above the muck!
+           && mons->type != MONS_ORC_APOSTLE;  // walking on top of it
+}
+
 void actor_apply_toxic_bog(actor * act)
 {
     if (env.grid(act->pos()) != DNGN_TOXIC_BOG)
         return;
 
-    if (act->airborne())
-        return;
-
-    const bool player = act->is_player();
-    monster *mons = !player ? act->as_monster() : nullptr;
-
-    if (mons &&
-        (mons->type == MONS_FENSTRIDER_WITCH  // stilting above the muck!
-         || mons->type == MONS_ORC_APOSTLE))  // walking on top of it
-    {
-        return;
-    }
-
-    if (player && (you.duration[DUR_NOXIOUS_BOG] || you.can_water_walk()))
-        return;
-
     actor *oppressor = nullptr;
 
-    for (map_marker *marker : env.markers.get_markers_at(act->pos()))
+    for (map_marker *marker : env.markers.get_markers_at(act->pos(), MAT_TERRAIN_CHANGE))
     {
-        if (marker->get_type() == MAT_TERRAIN_CHANGE)
-        {
-            map_terrain_change_marker* tmarker =
-                    dynamic_cast<map_terrain_change_marker*>(marker);
-            const auto ct = tmarker->change_type;
-            if (ct == TERRAIN_CHANGE_BOG || ct == TERRAIN_CHANGE_FLOOD)
-                oppressor = actor_by_mid(tmarker->mon_num);
-        }
+        map_terrain_change_marker* tmarker =
+                dynamic_cast<map_terrain_change_marker*>(marker);
+        const auto ct = tmarker->change_type;
+        if (ct == TERRAIN_CHANGE_BOG || ct == TERRAIN_CHANGE_FLOOD)
+            oppressor = actor_by_mid(tmarker->source_mid);
     }
 
-    if (!could_harm(oppressor, act))
+    if (!_bog_can_affect(oppressor, act))
         return;
 
     const int base_damage = toxic_bog_damage().roll();
@@ -4446,6 +4459,8 @@ void actor_apply_toxic_bog(actor * act)
 
     const int final_damage = timescale_damage(act, damage);
 
+    const bool player = act->is_player();
+    monster *mons = !player ? act->as_monster() : nullptr;
     if (player && final_damage > 0)
     {
         mprf("You fester in the toxic bog%s",
@@ -4653,15 +4668,7 @@ static void _discharge_maxwells_coupling()
 
     string attack_punctuation = attack_strength_punctuation(mon->hit_points);
 
-    if (mon->type == MONS_ROYAL_JELLY && !mon->is_summoned())
-    {
-        // need to do this here, because react_to_damage is never called
-        mprf("A cloud of jellies burst out of %s as the current"
-             " ripples through it%s", mon->name(DESC_THE).c_str(), attack_punctuation.c_str());
-        schedule_trj_spawn_fineff(&you, mon, mon->pos(), mon->hit_points);
-    }
-    else
-        mprf("The electricity discharges through %s%s", mon->name(DESC_THE).c_str(), attack_punctuation.c_str());
+    mprf("The electricity discharges through %s%s", mon->name(DESC_THE).c_str(), attack_punctuation.c_str());
 
     // XX the messaging and corpse logic here would be better handled in
     // monster_die, so that various special cases (e.g. dancing weapons in
@@ -4726,12 +4733,20 @@ vector<coord_def> find_bog_locations(const coord_def &center)
 
     return bog_locs;
 }
+
 spret cast_noxious_bog(int pow, bool fail)
 {
     vector <coord_def> bog_locs = find_bog_locations(you.pos());
     if (bog_locs.empty())
     {
         mpr("There are no places for you to create a bog.");
+        return spret::abort;
+    }
+
+    targeter_bog hitfunc(&you);
+    if (stop_attack_prompt(hitfunc, "create a bog",
+        [](const actor *a) { return _bog_can_affect(&you, a); }))
+    {
         return spret::abort;
     }
 

@@ -54,6 +54,7 @@
 #include "stringutil.h"
 #include "terrain.h"
 #include "rltiles/tiledef-dngn.h"
+#include "rltiles/tiledef-gui.h"
 #include "tileview.h"
 #include "timed-effects.h"
 #include "traps.h"
@@ -244,36 +245,27 @@ static void _abyss_postvault_fixup()
 // side-effect
 static bool _sync_rune_knowledge(coord_def p)
 {
-    if (!in_bounds(p))
-        return false;
-    // somewhat convoluted because to update map knowledge properly, we need
-    // an actual rune item
-    const bool already = env.map_knowledge(p).item();
-    const bool rune_memory = already && env.map_knowledge(p).item()->is_type(
-                                                    OBJ_RUNES, RUNE_ABYSSAL);
+    ASSERT(in_bounds(p));
+
+    const item_def* item = env.map_knowledge(p).item();
+    const bool rune_memory = item && item->is_type(OBJ_RUNES, RUNE_ABYSSAL);
+
     for (stack_iterator si(p); si; ++si)
     {
         if (si->is_type(OBJ_RUNES, RUNE_ABYSSAL))
         {
             // found! make sure map memory is up-to-date
             if (!rune_memory)
-                env.map_knowledge(p).set_item(*si, already);
-
-            if (!you.see_cell(p))
-                env.map_knowledge(p).flags |= MAP_DETECTED_ITEM;
+            {
+                env.map_knowledge(p).set_item(*si, item != nullptr);
+                if (!you.see_cell(p))
+                    env.map_knowledge(p).flags |= MAP_DETECTED_ITEM;
+                redraw_view_at(p);
+            }
             return true;
         }
     }
-    // no rune found, clear as needed
-    if (already && (!rune_memory
-                    || !!(env.map_knowledge(p).flags & MAP_MORE_ITEMS)))
-    {
-        // something else seems to have been there, clear the rune but leave
-        // a remnant
-        env.map_knowledge(p).set_detected_item();
-    }
-    else
-        env.map_knowledge(p).clear();
+    // no rune found
     return false;
 }
 
@@ -285,7 +277,7 @@ void clear_abyssal_rune_knowledge()
     cur_loc = coord_def(-1,-1);
 }
 
-static void _update_abyssal_map_knowledge()
+static void _update_abyssal_map_knowledge(coord_def map_shift = coord_def(0, 0))
 {
     // reset any waypoints set while in the abyss so far.
     // XX currently maprot doesn't clear waypoints, but they then don't show in
@@ -306,8 +298,16 @@ static void _update_abyssal_map_knowledge()
         you.props[ABYSSAL_RUNE_LOC_KEY].get_coord() = coord_def(-1,-1);
     coord_def &cur_loc = you.props[ABYSSAL_RUNE_LOC_KEY].get_coord();
     const bool existed = in_bounds(cur_loc);
-    if (existed && _sync_rune_knowledge(cur_loc))
-        return; // still exists in the same place, no need to do anything more
+    if (existed)
+    {
+        // Adjust the rune location by the shift we've applied to the map, if any.
+        cur_loc += map_shift;
+        // If the rune has gone out of bounds, forget it.
+        if (!in_bounds(cur_loc))
+            cur_loc = coord_def(-1,-1);
+        else if (_sync_rune_knowledge(cur_loc))
+            return; // still exists in the same place, no need to do anything more
+    }
 
     // now we need to check if a new or moved rune appeared
 
@@ -866,6 +866,7 @@ static void _abyss_update_transporter(const coord_def &pos,
 // Assumes:
 // a) target can be truncated if not fully in bounds
 // b) source and target areas may overlap
+// c) squares outside the area to move have been cleared
 //
 static void _abyss_move_entities(coord_def target_centre,
                                  map_bitmask *shift_area_mask)
@@ -907,17 +908,12 @@ static void _abyss_move_entities(coord_def target_centre,
             if (map_bounds_with_margin(dst, MAPGEN_BORDER))
             {
                 shift_area_mask->set(dst);
-                // Wipe the destination clean before dropping things on it.
-                _abyss_wipe_square_at(dst);
                 _abyss_move_entities_at(src, dst);
                 _abyss_update_transporter(dst, source_centre, target_centre,
                                           original_area_mask);
             }
-            else
-            {
-                // Wipe the source clean even if the dst is not in bounds.
-                _abyss_wipe_square_at(src);
-            }
+            // Wipe the source clean even if the dst is not in bounds.
+            _abyss_wipe_square_at(src);
         }
     }
 
@@ -1009,13 +1005,6 @@ static void _abyss_shift_level_contents_around_player(
 
     // Move stuff to its new home. This will also move the player.
     _abyss_move_entities(target_centre, &abyss_destruction_mask);
-
-    // [ds] Rezap everything except the shifted area. NOTE: the old
-    // code did not do this, leaving a repeated swatch of Abyss behind
-    // at the old location for every shift; discussions between Linley
-    // and dpeg on IRC confirm that this (repeated swatch of terrain left
-    // behind) was not intentional.
-    _abyss_wipe_unmasked_area(abyss_destruction_mask);
 
     // So far we've used the mask to track the portions of the level we're
     // preserving. The inverse of the mask represents the area to be filled
@@ -1459,7 +1448,7 @@ static int _abyss_place_vaults(const map_bitmask &abyss_genlevel_mask, bool plac
     return vaults_placed;
 }
 
-static void _generate_area(const map_bitmask &abyss_genlevel_mask)
+static void _generate_area(const map_bitmask &abyss_genlevel_mask, coord_def map_shift = coord_def(0, 0))
 {
     // Any rune on the floor prevents the abyssal rune from being generated.
     const bool placed_abyssal_rune = find_floor_item(OBJ_RUNES);
@@ -1479,7 +1468,7 @@ static void _generate_area(const map_bitmask &abyss_genlevel_mask)
 
     _ensure_player_habitable(true);
 
-    _update_abyssal_map_knowledge();
+    _update_abyssal_map_knowledge(map_shift);
 
     // Abyss has a constant density.
     env.density = 0;
@@ -1521,14 +1510,17 @@ static void abyss_area_shift()
         // A teleport may move you back to the center, resulting in a (0,0)
         // shift. The code can't handle those. We still to forget the map,
         // spawn new monsters or allow return from transit, though.
-        if (you.pos() != ABYSS_CENTRE)
+        coord_def old_centre = you.pos();
+        if (old_centre != ABYSS_CENTRE)
         {
             // Use a map mask to track the areas that the shift destroys and
             // that must be regenerated by _generate_area.
             map_bitmask abyss_genlevel_mask;
             _abyss_shift_level_contents_around_player(
                 ABYSS_AREA_SHIFT_RADIUS, ABYSS_CENTRE, abyss_genlevel_mask);
-            _generate_area(abyss_genlevel_mask);
+            // Specify the map shift so we can tell if the rune moved.
+            coord_def delta = you.pos() - old_centre;
+            _generate_area(abyss_genlevel_mask, delta);
         }
         forget_map(true);
 
@@ -1811,9 +1803,6 @@ struct corrupt_env
 static void _place_corruption_seed(const coord_def &pos, int duration)
 {
     env.markers.add(new map_corruption_marker(pos, duration));
-    // Corruption markers don't need activation, though we might
-    // occasionally miss other unactivated markers by clearing.
-    env.markers.clear_need_activate();
 }
 
 static void _initialise_level_corrupt_seeds(int power)
@@ -1913,37 +1902,24 @@ static void _spawn_corrupted_servant_near_monster(const monster &who)
     }
 }
 
-static void _apply_corruption_effect(map_marker *marker, int duration)
+bool map_corruption_marker::run(int time)
 {
-    if (!duration)
-        return;
+    if (time <= 0 || duration < 1)
+        return false;
 
-    map_corruption_marker *cmark = dynamic_cast<map_corruption_marker*>(marker);
-    if (cmark->duration < 1)
-        return;
-
-    const int neffects = max(div_rand_round(duration, 5), 1);
+    const int neffects = max(div_rand_round(time, 5), 1);
 
     for (int i = 0; i < neffects; ++i)
     {
-        if (x_chance_in_y(cmark->duration, 4000)
-            && !_spawn_corrupted_servant_near(cmark->pos))
+        if (x_chance_in_y(duration, 4000)
+            && !_spawn_corrupted_servant_near(pos))
         {
             break;
         }
     }
-    cmark->duration -= duration;
-}
+    duration -= time;
 
-void run_corruption_effects(int duration)
-{
-    for (map_marker *mark : env.markers.get_all(MAT_CORRUPTION_NEXUS))
-    {
-        if (mark->get_type() != MAT_CORRUPTION_NEXUS)
-            continue;
-
-        _apply_corruption_effect(mark, duration);
-    }
+    return false;
 }
 
 static bool _is_grid_corruptible(const coord_def &c)
@@ -2235,6 +2211,8 @@ static void _corrupt_level_features_monster(const corrupt_env &cenv, monster mon
 
         const int roll = random2(3000);
 
+        bool shimmer = you.see_cell(*ri) && env.grid(*ri) != DNGN_SHALLOW_WATER &&
+                       !feat_is_deep_water(env.grid(*ri)) && !feat_is_lava(env.grid(*ri));
         // In the monster version of the effect we have an extra check here
         // which will prevent the effect from triggering _corrupt_square
         // on anything other than clear dungeon floor.
@@ -2246,10 +2224,22 @@ static void _corrupt_level_features_monster(const corrupt_env &cenv, monster mon
             if (roll < corrupt_perc_chance && _is_grid_corruptible(*ri))
                 _corrupt_square_monster(cenv, *ri);
             else if (roll < corrupt_flavor_chance && _is_grid_corruptible(*ri))
+            {
+                if (shimmer)
+                {
+                    flash_tile(*ri, random_choose(RED, BLUE, YELLOW,
+                                MAGENTA), 8, TILE_BOLT_CORRUPTION);
+                }
                 _corrupt_square_flavor(cenv, *ri);
+            }
         }
         else
         {
+            if (shimmer )
+            {
+                flash_tile(*ri, random_choose(RED, BLUE, YELLOW,
+                            MAGENTA), 8, TILE_BOLT_CORRUPTION);
+            }
             // chance to change the colour of any grid
             if (roll < corrupt_flavor_chance && _is_grid_corruptible(*ri))
                 _corrupt_square_flavor(cenv, *ri);
@@ -2321,7 +2311,7 @@ void lugonu_corrupt_level(int power)
     corrupt_env cenv;
     _corrupt_choose_colours(&cenv);
     _corrupt_level_features(cenv);
-    run_corruption_effects(300);
+    env.markers.run_all(300, MAT_CORRUPTION_NEXUS);
 
     // Allow extra time for the flash to linger.
     scaled_delay(1000);
@@ -2331,8 +2321,6 @@ void lugonu_corrupt_level_monster(const monster &who)
 {
     if (is_level_incorruptible_monster())
         return;
-
-    flash_view_delay(UA_MONSTER, MAGENTA, 200);
 
     corrupt_env cenv;
     _corrupt_choose_colours(&cenv);
@@ -2345,8 +2333,8 @@ void lugonu_corrupt_level_monster(const monster &who)
     for (int i = 0; i < count; ++i)
         _spawn_corrupted_servant_near_monster(who);
 
-    // Allow extra time for the flash to linger.
-    scaled_delay(300);
+    // Allow extra time for the tile effects to linger.
+    scaled_delay(250);
 }
 
 /// Splash decorative corruption around the given space.
@@ -2358,17 +2346,6 @@ void splash_corruption(coord_def centre)
     for (adjacent_iterator ai(centre); ai; ++ai)
         if (in_bounds(*ai) && coinflip())
             _corrupt_square_flavor(cenv, *ai);
-}
-
-static void _cleanup_temp_terrain_at(coord_def pos)
-{
-    for (map_marker *mark : env.markers.get_all(MAT_TERRAIN_CHANGE))
-    {
-        map_terrain_change_marker *marker =
-                dynamic_cast<map_terrain_change_marker*>(mark);
-        if (mark->pos == pos)
-            revert_terrain_change(pos, marker->change_type);
-    }
 }
 
 /// If the player has earned enough XP, spawn an exit or stairs down.
@@ -2387,7 +2364,7 @@ void abyss_maybe_spawn_xp_exit()
                         && coinflip()
                         && you.props[ABYSS_SPAWNED_XP_EXIT_KEY].get_bool();
 
-    _cleanup_temp_terrain_at(you.pos());
+    revert_terrain_change(you.pos());
     destroy_wall(you.pos()); // fires listeners etc even if it wasn't a wall
     env.grid(you.pos()) = stairs ? DNGN_ABYSSAL_STAIR : DNGN_EXIT_ABYSS;
     big_cloud(CLOUD_TLOC_ENERGY, &you, you.pos(), 3 + random2(3), 3, 3);

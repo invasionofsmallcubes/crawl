@@ -310,12 +310,7 @@ static bool _place_webs()
     const int max_range = LOS_DEFAULT_RANGE / 2 + 2;
     for (monster_near_iterator mi(you.pos(), LOS_SOLID); mi; ++mi)
     {
-        trap_def *trap = trap_at((*mi)->pos());
-        // Don't destroy non-web traps or try to trap monsters
-        // currently caught by something.
         if (you.pos().distance_from((*mi)->pos()) > max_range
-            || (!trap && env.grid((*mi)->pos()) != DNGN_FLOOR)
-            || (trap && trap->type != TRAP_WEB)
             || (*mi)->friendly()
             || (*mi)->caught())
         {
@@ -325,14 +320,7 @@ static bool _place_webs()
         if (!x_chance_in_y(web_chance, 100))
             continue;
 
-        if (trap && trap->type == TRAP_WEB)
-            destroy_trap((*mi)->pos());
-
-        place_specific_trap((*mi)->pos(), TRAP_WEB, 1); // 1 ammo = temp
-        // Reveal the trap
-        env.grid((*mi)->pos()) = DNGN_TRAP_WEB;
-        trap = trap_at((*mi)->pos());
-        trap->trigger(**mi);
+        mi->trap_in_web();
         webbed = true;
     }
     return webbed;

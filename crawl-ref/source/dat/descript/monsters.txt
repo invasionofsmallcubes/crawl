@@ -715,10 +715,6 @@ A wizard fond of spectacle and destruction. They scorn the cowardice of other
 magicians, who hide from their foes rather than simply blasting them out of
 existence.
 %%%%
-armataur
-
-A curious quadraped, resembling a cross between an armadillo and a yaktaur.
-%%%%
 armour echo
 
 The sweat and toil of the armourer working leather and steel infuses an
@@ -3204,8 +3200,11 @@ whirls of fire and ice occasionally escape and ricochet wildly off of walls.
 thorn hunter
 
 A predatory marsh plant, possessed of motility and a rudimentary intelligence.
-It ensnares its prey with protrusions of spiny brambles and then skewers the
-trapped creatures with its razor-sharp thorns.
+It ensnares its prey in rings of spiny brambles and then skewers the trapped
+creatures with its razor-sharp thorns.
+
+When injured or approached by enemies, it can even raise these brambles as a
+barricade around itself.
 %%%%
 toadstool
 
@@ -3530,8 +3529,8 @@ A muscular yellow-scaled humanoid with a reptilian tail and small wings.
 %%%%
 ynoxinul
 
-A winged demon covered in shiny metallic scales. It has a legion of minor
-demons under its command.
+A winged demon covered in shiny metallic scales. It has a legion of minor demons
+at its command, which it impels to savage fury.
 %%%%
 zombie
 

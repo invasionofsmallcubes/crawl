@@ -1256,53 +1256,15 @@ void bolt::do_fire()
 
         const dungeon_feature_type feat = env.grid(pos());
 
-        if (in_bounds(target)
-            // Starburst beams are essentially untargeted; some might even hit
-            // a victim if others have LOF blocked.
-            && origin_spell != SPELL_STARBURST
-            // We ran into a solid wall with a real beam...
-            && (feat_is_solid(feat)
-                && flavour != BEAM_DIGGING && flavour <= BEAM_LAST_REAL
-                && !cell_is_solid(target)
-            // Or hit a monster that'll stop our beam...
-                || at_blocking_monster())
-            // and it's a player tracer that cares about blocked paths...
-            && is_tracer() && tracer->is_collecting_warnings() && YOU_KILL(thrower)
-            // and we're actually between you and the target...
-            && !passed_target && pos() != target && pos() != source
-            // ?
-            && !tracer->has_hit_foe() && bounces == 0 && reflections == 0
-            // and you aren't shooting out of LOS.
-            && you.see_cell(target))
-        {
-            // Okay, with all those tests passed, this is probably an instance
-            // of the player manually targeting something whose line of fire
-            // is blocked, even though its line of sight isn't blocked. Give
-            // a warning about this fact.
-            const monster* mon = monster_at(target);
-
-            string blockee;
-            if (mon && mon->observable())
-                blockee = mon->name(DESC_THE);
-            else
-            {
-                blockee = "the targeted "
-                        + feature_description_at(target, false, DESC_PLAIN);
-            }
-
-            const string blocker = feat_is_solid(feat) ?
-                        feature_description_at(pos(), false, DESC_A) :
-                        monster_at(pos())->name(DESC_A);
-
-            tracer->blocked("Your line of fire to " + blockee
-                            + " is blocked by " + blocker + ".");
-            finish_beam();
-            return;
-        }
-
-        // If requested to stop before hitting allies, do so now.
+        // If requested to stop before hitting allies (or neutrals our god would
+        // object to us harming), do so now.
         const actor* act_at = actor_at(pos());
-        if (act_at && stop_at_allies && mons_atts_aligned(attitude, act_at->temp_attitude())
+        if (act_at && stop_at_allies
+            && (mons_atts_aligned(attitude, act_at->temp_attitude())
+                || (act_at->temp_attitude() == ATT_NEUTRAL
+                    && (is_good_god(you.religion)
+                        || you_worship(GOD_BEOGH) && mons_genus(act_at->type) == MONS_ORC)
+                    && !(act_at->is_monster() && act_at->as_monster()->has_ench(ENCH_FRENZIED))))
             && can_affect_actor(act_at) && !aimed_at_feet
             && !(act_at->is_player() && ignores_player() || ignores_monster(act_at->as_monster())))
         {
@@ -2738,7 +2700,7 @@ void bolt::affect_endpoint()
             break;
 
         monster* blade = create_monster(mgen_data(MONS_DANCING_WEAPON,
-                                        SAME_ATTITUDE(agent(true)->as_monster()),
+                                        SAME_ATTITUDE(agent(true)),
                                         pos(), agent(true)->as_monster()->foe)
                         .set_summoned(agent(true), SPELL_FLASHING_BALESTRA, summ_dur(1), false)
                         .set_range(1));
@@ -2759,8 +2721,14 @@ void bolt::affect_endpoint()
         if (actor_at(p) || !monster_habitable_grid(MONS_PILE_OF_FLESH, p))
             p = get_last_affected_pos(0);
 
+        // If the bolt didn't affect anything, we can't create the flesh. This
+        // can for example happen if the bolt was redirected by Ru at something
+        // the monster can't actually hit.
+        if (p.origin())
+            break;
+
         create_monster(mgen_data(MONS_PILE_OF_FLESH,
-                       SAME_ATTITUDE(agent(true)->as_monster()),
+                       SAME_ATTITUDE(agent(true)),
                        p, agent(true)->as_monster()->foe)
                        .set_summoned(agent(true), SPELL_BOLT_OF_FLESH, summ_dur(3), false)
                        .set_range(0, 1));
@@ -2810,16 +2778,9 @@ void bolt::affect_endpoint()
         int count = random_range(3, 6);
         for (distance_iterator di(pos(), true, true, 1); di && count > 0; ++di)
         {
-            trap_def *trap = trap_at(*di);
-            if (trap && trap->type != TRAP_WEB
-                || !trap && env.grid(*di) != DNGN_FLOOR)
-            {
-                continue;
-            }
-
             if (actor_at(*di))
                 actor_at(*di)->trap_in_web();
-            else
+            else if (env.grid(*di) == DNGN_FLOOR)
             {
                 temp_change_terrain(*di, DNGN_TRAP_WEB, random_range(60, 110),
                                     TERRAIN_CHANGE_WEBS);
@@ -2886,8 +2847,8 @@ bool bolt::found_player() const
         && dist <= 2
         && (!agent()
             || (agent()->is_monster()
-                && !agent()->as_monster()->friendly()
-                && agent()->as_monster()->attitude != ATT_MARIONETTE))
+                && !agent()->friendly()
+                && agent()->temp_attitude() != ATT_MARIONETTE))
         // No point in fuzzing to a position that could never be hit.
         && you.see_cell_no_trans(pos())
         && !cell_is_solid(pos())
@@ -3184,18 +3145,18 @@ void bolt::internal_ouch(int dam)
     if (monst && mons_is_wrath_avatar(*monst))
     {
         ouch(dam, KILLED_BY_DIVINE_WRATH, MID_NOBODY,
-             aux_source.empty() ? nullptr : aux_source.c_str(), true,
+             aux_source.empty() ? nullptr : aux_source.c_str(),
              source_name.empty() ? nullptr : source_name.c_str());
     }
     else if (is_death_effect)
     {
         ouch(dam, KILLED_BY_DEATH_EXPLOSION, source_id,
-             aux_source.c_str(), true,
+             aux_source.c_str(),
              source_name.empty() ? nullptr : source_name.c_str());
     }
     else if (flavour == BEAM_MINDBURST || flavour == BEAM_DESTRUCTION)
     {
-        ouch(dam, KILLED_BY_DISINT, source_id, what, true,
+        ouch(dam, KILLED_BY_DISINT, source_id, what,
              source_name.empty() ? nullptr : source_name.c_str());
     }
     else if (YOU_KILL(thrower) && aux_source.empty())
@@ -3214,8 +3175,7 @@ void bolt::internal_ouch(int dam)
     }
     else if (MON_KILL(thrower))
     {
-        ouch(dam, KILLED_BY_BEAM, source_id,
-             what, true,
+        ouch(dam, KILLED_BY_BEAM, source_id, what,
              source_name.empty() ? nullptr : source_name.c_str());
     }
     else // KILL_NON_ACTOR || (YOU_KILL && aux_source)
@@ -3351,7 +3311,7 @@ bool bolt::harmless_to_player() const
         return player_res_poison(false) > 0 || you.clarity();
 
     case BEAM_PETRIFY:
-        return you.res_petrify() || you.petrified();
+        return you.res_petrify() || you.petrified() || you.petrifying();
 
     case BEAM_COLD:
         return is_big_cloud() && actor_cloud_immune(you, CLOUD_COLD);
@@ -3480,7 +3440,7 @@ void bolt::tracer_affect_player()
     extra_range_used += range_used_on_hit();
 }
 
-int bolt::apply_lighting(int base_hit, const actor &targ) const
+int bolt::apply_to_hit_modifiers(int base_hit, const actor &targ) const
 {
     if (targ.invisible() && !can_see_invis)
         base_hit /= 2;
@@ -3494,6 +3454,9 @@ int bolt::apply_lighting(int base_hit, const actor &targ) const
     // Malus is already negative so must still be ADDED to the base_hit
     if (!nightvision && targ.umbra())
         base_hit += UMBRA_TO_HIT_MALUS * 2;
+
+    if (targ.is_monster() && targ.as_monster()->has_ench(ENCH_EXPOSED))
+        base_hit *= 2;
 
     return base_hit;
 }
@@ -3516,7 +3479,7 @@ bool bolt::misses_player()
     int real_tohit  = hit;
 
     if (real_tohit != AUTOMATIC_HIT)
-        real_tohit = apply_lighting(real_tohit, you);
+        real_tohit = apply_to_hit_modifiers(real_tohit, you);
 
     const int SH = player_shield_class();
     if ((player_omnireflects() && is_omnireflectable()
@@ -4652,6 +4615,9 @@ void bolt::tracer_enchantment_affect_monster(monster* mon)
     }
 
     tracer->monster_hit(*this, *mon);
+
+    // Potentially chain to adjacent monsters.
+    handle_enchant_chaining(mon->pos());
     extra_range_used += range_used_on_hit();
 }
 
@@ -4882,7 +4848,7 @@ void bolt::tracer_affect_monster(monster* mon)
 {
     // Ignore unseen monsters.
     if ((agent() && !agent()->can_see(*mon))
-        || !cell_see_cell(source, mon->pos(), LOS_NO_TRANS))
+        || !cell_see_cell(source, mon->pos(), LOS_DEFAULT))
     {
         return;
     }
@@ -5006,7 +4972,8 @@ static void _add_chain_candidates(const bolt& beam, coord_def pos,
         if (!act
             || mons_aligned(beam.agent(), act)
             || act->is_peripheral()
-            || shoot_through_actor(beam.agent(), act))
+            || shoot_through_actor(beam.agent(), act)
+            || (beam.is_tracer() && !act->visible_to(beam.agent())))
         {
             continue;
         }
@@ -5496,27 +5463,6 @@ bool bolt::bush_immune(const monster &mons) const
         && target != mons.pos();
 }
 
-// Is there a visible monster at this position which will keep the beam from
-// continuing onward? (And, if so, is it firewood or something else we'd never
-// actually want to bother hitting?)
-bool bolt::at_blocking_monster() const
-{
-    const monster *mon = monster_at(pos());
-    if (!mon || !you.can_see(*mon))
-        return false;
-
-    if (!pierce && !ignores_monster(mon) && mon->is_firewood())
-        return true;
-    if (have_passive(passive_t::neutral_slimes)
-        && mons_is_slime(*mon)
-        && mon->wont_attack()
-        && flavour != BEAM_VILE_CLUTCH)
-    {
-        return true;
-    }
-    return false;
-}
-
 void bolt::affect_monster(monster* mon)
 {
     // Don't hit dead or fake monsters.
@@ -5651,7 +5597,7 @@ void bolt::affect_monster(monster* mon)
     int beam_hit = hit;
 
     if (beam_hit != AUTOMATIC_HIT)
-        beam_hit = apply_lighting(beam_hit, *mon);
+        beam_hit = apply_to_hit_modifiers(beam_hit, *mon);
 
     // The monster may block the beam.
     if (!engulfs && is_blockable() && attempt_block(mon))
@@ -6015,7 +5961,7 @@ bool ench_flavour_affects_monster(actor *agent, beam_type flavour,
         break;
 
     case BEAM_PETRIFY:
-        rc = !mon->res_petrify();
+        rc = !mon->res_petrify() && !mon->petrifying() && !mon->petrified();
         break;
 
     case BEAM_INFESTATION:
@@ -7824,18 +7770,11 @@ void player_beam_tracer::monster_hit(const bolt& beam, const monster& mon)
     }
 }
 
-void player_beam_tracer::blocked(string message) noexcept
-{
-    blocked_message = std::move(message);
-    blocked_count++;
-}
-
 // Returns true if there is anything this tracer might possibly want to prompt
 // the player about.
 bool player_beam_tracer::has_any_warnings() noexcept
 {
-    return blocked_count > 0
-            || god_hated_target
+    return god_hated_target
             || bad_charm_target
             || hit_self_count > 0
             || !bad_attack_targets.empty();
@@ -7874,16 +7813,8 @@ int targeting_tracer::player_hit_count() noexcept
 }
 
 // returns true if the player wishes to cancel firing the bolt, false otherwise
-bool cancel_beam_prompt(const bolt& beam, const player_beam_tracer& tracer,
-                        int beams_fired)
+bool cancel_beam_prompt(const bolt& beam, const player_beam_tracer& tracer)
 {
-    ASSERT(beams_fired >= tracer.blocked_count);
-    if (tracer.blocked_count >= beams_fired)
-    {
-        mpr(tracer.blocked_message);
-        return true;
-    }
-
     const spell_type spell = beam.origin_spell;
 
     if (tracer.god_hated_target
@@ -8006,7 +7937,7 @@ void bolt::do_ranged_attack(actor& targ)
         foes_hurt++;
 
     ranged_attack attk(ag, &targ, ranged_atk->weapon, use_target_as_pos, agent());
-    attk.will_mulch = ranged_atk->will_mulch;
+    ranged_atk->copy_params_to(attk);
 
     attk.attack();
     // XXX: hit_verb is used later to make Damnation bolts only explode on it.

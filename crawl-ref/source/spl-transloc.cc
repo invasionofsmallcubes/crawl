@@ -22,7 +22,7 @@
 #include "directn.h"
 #include "dungeon.h"
 #include "english.h"
-#include "god-abil.h" // fedhas_passthrough for armataur charge
+#include "god-abil.h"
 #include "god-conduct.h"
 #include "item-prop.h"
 #include "items.h"
@@ -31,14 +31,14 @@
 #include "los.h"
 #include "losglobal.h"
 #include "losparam.h"
-#include "melee-attack.h" // armataur charge
+#include "melee-attack.h"
 #include "message.h"
 #include "mon-behv.h"
 #include "mon-death.h"
 #include "mon-place.h"
 #include "mon-tentacle.h"
 #include "mon-util.h"
-#include "movement.h" // armataur charge
+#include "movement.h"
 #include "nearby-danger.h"
 #include "orb.h"
 #include "output.h"
@@ -1707,20 +1707,14 @@ spret cast_golubrias_passage(int pow, const coord_def& where, bool fail)
     }
 
     fail_check();
-    place_specific_trap(randomized_where, TRAP_GOLUBRIA);
-    place_specific_trap(randomized_here, TRAP_GOLUBRIA);
-    env.level_state |= LSTATE_GOLUBRIA;
 
-    trap_def *trap = trap_at(randomized_where);
-    trap_def *trap2 = trap_at(randomized_here);
-    if (!trap || !trap2)
-    {
-        mpr("Something buggy happened.");
-        return spret::abort;
-    }
+    temp_change_terrain(randomized_where, DNGN_PASSAGE_OF_GOLUBRIA,
+                        random_range(10, 19) * BASELINE_DELAY,
+                        TERRAIN_CHANGE_GOLUBRIA);
 
-    trap->reveal();
-    trap2->reveal();
+    temp_change_terrain(randomized_here, DNGN_PASSAGE_OF_GOLUBRIA,
+                        random_range(10, 19) * BASELINE_DELAY,
+                        TERRAIN_CHANGE_GOLUBRIA);
 
     return spret::success;
 }
@@ -1828,7 +1822,7 @@ spret cast_gravitas(int pow, const coord_def& where, bool fail)
          mons || feat_is_solid(env.grid(where)) ? " around " : "",
          mons ? mons->name(DESC_THE).c_str() :
                 feat_is_solid(env.grid(where)) ? feature_description(env.grid(where),
-                                                                     NUM_TRAPS, "",
+                                                                     "",
                                                                      DESC_THE)
                                                                     .c_str() : "");
 

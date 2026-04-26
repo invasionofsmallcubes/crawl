@@ -49,6 +49,7 @@
 #include "tag-version.h"
 #include "terrain.h"
 #include "tileview.h"
+#include "traps.h"
 #include "rltiles/tiledef-dngn.h"
 #include "rltiles/tiledef-player.h"
 
@@ -6150,33 +6151,6 @@ void keyed_mapspec::parse_features(const string &s)
 }
 
 /**
- * Convert a trap string into a trap_spec.
- *
- * This function converts an incoming trap specification string from a vault
- * into a trap_spec.
- *
- * @param s       The string to be parsed.
- * @param weight  The weight of this string.
- * @return        A feature_spec with the contained, parsed trap_spec stored via
- *                unique_ptr as feature_spec->trap.
-**/
-feature_spec keyed_mapspec::parse_trap(string s, int weight)
-{
-    strip_tag(s, "trap");
-
-    trim_string(s);
-    lowercase(s);
-
-    const int trap = str_to_trap(s);
-    if (trap == -1)
-        err = make_stringf("bad trap name: '%s'", s.c_str());
-
-    feature_spec fspec(1, weight);
-    fspec.trap.reset(new trap_spec(static_cast<trap_type>(trap)));
-    return fspec;
-}
-
-/**
  * Convert a shop string into a shop_spec.
  *
  * This function converts an incoming shop specification string from a vault
@@ -6267,8 +6241,8 @@ feature_spec_list keyed_mapspec::parse_feature(const string &str)
         fsp.glyph = s[0];
         list.push_back(fsp);
     }
-    else if (strip_tag(s, "trap") || s == "web")
-        list.push_back(parse_trap(s, weight));
+    else if (strip_tag(s, "any trap") || strip_tag(s, "random trap"))
+        list.emplace_back(random_trap_for_place(), weight);
     else if (strip_tag(s, "shop"))
         list.push_back(parse_shop(s, weight, mimic, no_mimic));
     else if (auto ftype = dungeon_feature_by_name(s)) // DNGN_UNSEEN == 0
@@ -6379,7 +6353,6 @@ feature_spec::feature_spec()
     feat = 0;
     glyph = -1;
     shop.reset(nullptr);
-    trap.reset(nullptr);
     mimic = 0;
     no_mimic = false;
 }
@@ -6390,7 +6363,6 @@ feature_spec::feature_spec(int f, int wt, int _mimic, bool _no_mimic)
     feat = f;
     glyph = -1;
     shop.reset(nullptr);
-    trap.reset(nullptr);
     mimic = _mimic;
     no_mimic = _no_mimic;
 }
@@ -6414,11 +6386,6 @@ void feature_spec::init_with(const feature_spec& other)
     glyph = other.glyph;
     mimic = other.mimic;
     no_mimic = other.no_mimic;
-
-    if (other.trap)
-        trap.reset(new trap_spec(*other.trap));
-    else
-        trap.reset(nullptr);
 
     if (other.shop)
         shop.reset(new shop_spec(*other.shop));

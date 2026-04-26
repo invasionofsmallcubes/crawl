@@ -125,7 +125,7 @@ ENDMAP
 # Sorry, no wand of wishing in this one
 NAME:    evilmike_zot_entry_castle
 TAGS:    no_monster_gen no_pool_fixup zot_entry layout_city
-KFEAT:   ^ = alarm trap
+KFEAT:   ^ = trap_alarm
 KFEAT:   - = +
 SHUFFLE: Nn / Oo / Pp / Qq
 SUBST:   o = R, NP = Z, Q = A, npq = ., ^ = ^.., s = ccc+
@@ -583,7 +583,7 @@ NAME:   lemuel_baited_zot_trap
 TAGS:   allow_dup extra luniq
 DEPTH:  Zot
 WEIGHT: 20
-KFEAT:  * = zot trap
+KFEAT:  * = trap_zot
 KITEM:  * = any good_item
 MAP
 *
@@ -671,7 +671,7 @@ ENDMAP
 NAME:    hangedman_zot_gyre
 TAGS:    extra transparent zotdec luniq_zotdec_large
 DEPTH:   Zot
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: dD, eE, fF, gG, hH, dD / eE / fF / gG / hH
 SHUFFLE: cCbB / cCbB / bBcC, qQ / qQ / ZZ / wl / '' / ''
 SUBST:   defhH = X, DEF = ., g : X.., G : X.., ' = .
@@ -770,7 +770,7 @@ ENDMAP
 NAME:    hangedman_zot_decor_checkerboard
 TAGS:    no_pool_fixup extra zotdec transparent luniq_zotdec_liquid
 DEPTH:   Zot, !Zot:$
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: @' / '@ / "" / "", defg / jkhi / HIJK / NOLM
 SUBST:   d : wbb, e : wwb, f : lbb, g : llb
 SUBST:   h : lbb, i : llb, j : wbb, k : wwb
@@ -800,7 +800,7 @@ ENDMAP
 NAME:    hangedman_zot_decor_slant
 TAGS:    extra transparent zotdec
 DEPTH:   Zot
-KFEAT:   z = zot trap
+KFEAT:   z = trap_zot
 KFEAT:   fF = floor
 SHUFFLE: BVfF / VBFf, aAuU / aAuU / aAuU / uUaA
 SHUFFLE: AU / "", fF / fF / zz, @! / !@ / ?? / ??
@@ -840,7 +840,7 @@ ENDMAP
 NAME:    hangedman_zot_decor_scrapings
 TAGS:    transparent extra zotdec
 DEPTH:   Zot
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: HIJKLM / HIJKLM / IHKJML
 SUBST:   HJL : xxcb, I : x..., K : x..., M : x...
 SUBST:   N : xcG.., O : xc..., P : xcG.., Z = ()G x:45 Z:25
@@ -865,7 +865,7 @@ ENDMAP
 NAME:    hangedman_zot_decor_tridents
 TAGS:    transparent extra zotdec
 DEPTH:   Zot
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: bc / xy / XY, bc / cb / cc
 SUBST:   ~ = ()+Z .:60, - : ++.
 SUBST:   H : z., I : z., J : z.
@@ -897,7 +897,7 @@ NAME:    hangedman_zot_diagonal_lockstep
 TAGS:    transparent extra zotdec
 DEPTH:   Zot
 ITEM:    % no_pickup
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: ABCDEFG, defg / hijk / mnop / qrst, defg, hjik, mnop
 SUBST:   A : xbvcZ, B : xc, C : xxc, D : c, EFG = x
 SUBST:   d : xxZ, h = x, e : xx., i : xx., f : x.., j : x.., m : x..
@@ -1353,7 +1353,7 @@ TAGS:    extra transparent zotdec no_rotate no_hmirror no_vmirror
 DEPTH:   Zot
 KFEAT:   t = petrified_tree
 KFEAT:   C = altar_qazlal w:20 / altar_makhleb / altar_xom
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: opqrstu
 SUBST:   o = x, p : x., q : x., rs = ., z : xxbbCVG, b : bbc, F : F..
 MARKER:  Z = lua:fog_machine {cloud_type = "seething chaos", \
@@ -1634,7 +1634,7 @@ NAME:    regret_index_zotdec_decaying_basic
 TAGS:    extra no_pool_fixup no_trap_gen zotdec luniq_zotdec_rune
 DEPTH:   Zot, !Zot:$
 ITEM:    swamp dragon scales, spear, wand of flame pre_id charges:1
-KFEAT:   ^ = shaft trap
+KFEAT:   ^ = shaft
 KFEAT:   t = petrified_tree
 KFEAT:   C = altar_fedhas
 SHUFFLE: pqrs
@@ -1794,8 +1794,8 @@ ENDMAP
 NAME:    regret_index_zotdec_gossamer_parallel
 TAGS:    extra no_trap_gen zotdec luniq_zotdec_rune
 DEPTH:   Zot, !Zot:$
-KFEAT:   z = web trap
-KFEAT:   Z = zot trap
+KFEAT:   z = web
+KFEAT:   Z = trap_zot
 SUBST:   { = {[(}])<>$%, A : CVGZ..
 SUBST:   c : ccx
 SHUFFLE: qrs
@@ -1824,7 +1824,7 @@ TAGS:    extra no_trap_gen zotdec no_rotate luniq_zotdec_rune
 DEPTH:   Zot, !Zot:$
 WEIGHT:  5
 ITEM:    mundane cloak
-KFEAT:   ^ = web trap
+KFEAT:   ^ = web
 NSUBST:  { = 1:{([T<<<<d^c / 1:})]T>>>>d^c / * = xxc^%
 SUBST:   c : ccx
 SHUFFLE: pqrstuv
@@ -1962,7 +1962,7 @@ NAME:    regret_index_zotdec_silver_v_v_loose
 TAGS:    extra zotdec transparent no_trap_gen luniq_zotdec_rune
 DEPTH:   Zot, !Zot:$
 ITEM:    mundane arbalest
-KFEAT:   ^ = alarm trap
+KFEAT:   ^ = trap_alarm
 KFEAT:   C = altar_gozag
 KFEAT:   V = v
 SHUFFLE: opqrstu
@@ -2001,7 +2001,7 @@ TAGS:    extra zotdec transparent no_trap_gen no_rotate
 TAGS:    luniq_zotdec_rune luniq_zotdec_large
 DEPTH:   Zot, !Zot:$
 ITEM:    mundane arbalest
-KFEAT:   ^ = alarm trap
+KFEAT:   ^ = trap_alarm
 KFEAT:   C = altar_gozag
 KFEAT:   V = v
 SHUFFLE: opqrst
@@ -2041,7 +2041,7 @@ TAGS:    luniq_zotdec_rune luniq_zotdec_large
 DEPTH:   Zot, !Zot:$
 ITEM:    stone q:1
 KFEAT:   C = altar_kikubaaqudgha / altar_yredelemnul
-KFEAT:   Z = zot trap / alarm trap
+KFEAT:   Z = trap_zot / trap_alarm
 SUBST:   < = <>, Z = ZC.
 SUBST:   { = {([})]<>%$VVVVC
 SHUFFLE: pqrs, +-
@@ -2078,7 +2078,7 @@ NAME:    regret_index_zotdec_glowing_original
 TAGS:    extra transparent zotdec no_trap_gen luniq_zotdec_rune
 DEPTH:   Zot, !Zot:$
 KFEAT:   C = altar_nemelex_xobeh
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: qrst
 SUBST:   q : ., r : c., st = c
 SUBST:   { = {([})]>>C%$UUUU, Z : ZUV
@@ -2187,7 +2187,7 @@ NAME:    regret_index_zotdec_dark_gr
 TAGS:    extra transparent zotdec no_trap_gen luniq_zotdec_rune
 DEPTH:   Zot, !Zot:$
 KFEAT:   C = altar_kikubaaqudgha
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: qrs
 SUBST:   q = ., rs = x
 SUBST:   + : ++., Z : Z.., { = {([})]CC<>dd$VVV
@@ -2359,7 +2359,7 @@ TAGS:    extra transparent zotdec luniq_zotdec_rune no_rotate
 DEPTH:   Zot, !Zot:$
 ITEM:    maw talisman
 KFEAT:   C = altar_yredelemnul
-KFEAT:   ^ = shaft trap
+KFEAT:   ^ = shaft
 SHUFFLE: opqrst
 SUBST:   op = x, q : xx., r : x.., st = .
 SUBST:   - : +c, { = {([})]++CC^^.., b = bxx
@@ -2470,7 +2470,7 @@ DEPTH:  Zot, !Zot:$
 MONS:   laughing skull, lich, ancient lich / dread lich, necromancer
 MONS:   vampire mage, black draconian draugr, orb of entropy
 ITEM:   any book mimic:10 w:20 / any scroll mimic:10
-KFEAT:  ^ = archmage's trap
+KFEAT:  ^ = trap_archmage
 SUBST:  x : xvv, w : w?, G : Gg
 NSUBST: ? = 14 = 111' / *:'
 SUBST:  4 = 4 5:3 .:3, ^ : ^..
@@ -2546,7 +2546,7 @@ NAME:   lemuel_golem_globe
 TAGS:   no_rotate no_exits
 DEPTH:  Zot
 MONS:   electric golem
-KFEAT:  ^ = permanent teleport trap / dispersal trap
+KFEAT:  ^ = trap_teleport_permanent / trap_dispersal
 KFEAT:  m = iron_grate
 NSUBST: 1 = 1:1 / 1:. / * = 1.
 : vault_metal_statue_setup(_G, "Z", "nascence circuit")
@@ -2601,7 +2601,7 @@ DEPTH:  Zot, !Zot:$
 ORIENT: centre
 MONS:   oklob plant, acid blob, jelly, yellow draconian
 MONS:   any nonbase yellow draconian, slymdra band, orb of entropy
-KFEAT:  ^ = devourer's trap
+KFEAT:  ^ = trap_devourer
 SUBST:  1 = 1:2 .
 SUBST:  . = .:20 3:3 2:1
 SUBST:  } = }:80 >, ) = ):80 >, ] = ]:80 >
@@ -2644,11 +2644,11 @@ DEPTH:  Zot, !Zot:$
 ORIENT: centre
 MONS:   orb of fire, fire elemental
 MONS:   red draconian, any nonbase red draconian
-MONS:   efreet, sun moth
+MONS:   efreet, sun moth, red draconian scorcher
 : if dgn.zot_orb_type() == "orb of fire" then
 SUBST:  1 = 122, 6 = '
 : else
-NSUBST: 16 = 2:6 / * = 662
+NSUBST: 16 = 2:7 / * = 667
 : end
 SUBST:  3 = 322, 4 = 2:20 4:5 3:15 ':20, G : G.
 FTILE:  @ = floor_pebble_lightmagenta
@@ -2855,7 +2855,7 @@ MONS:   oklob plant w:4 / lightning spire w:3
 MONS:   orange crystal statue / curse skull
 # Not quite the orb, but but close enough
 ITEM:   orb randart no_pickup, randbook disc:forgecraft spells:diamond_sawblades
-KFEAT:  ^ = archmage's trap / harlequin's trap / devourer's trap
+KFEAT:  ^ = trap_archmage / trap_harlequin / trap_devourer
 NSUBST: 1 = 1:1 / 6 = 11^ / *:., 3 = 1:1 / 4 = 11....... / *:.
 SUBST:  } = }:80 >, ) = ):80 >, ] = ]:80 >
 : vault_metal_statue_setup(_G, "G", "enigmatic dynamo")
@@ -2902,8 +2902,8 @@ KMONS:   8&! = protean progenitor
 KMONS:   _ = ghost moth
 KMONS:   90 = moth of wrath / butterfly w:30
 KFEAT:   B = cache_of_baked_goods
-KFEAT:   0 = harlequin's trap
-KFEAT:   ^~ = teleport trap / dispersal trap
+KFEAT:   0 = trap_harlequin
+KFEAT:   ^~ = trap_teleport / trap_dispersal
 KFEAT:   _ = altar_xom
 KFEAT:   > = } mimic
 KFEAT:   m = iron_grate
@@ -3424,7 +3424,7 @@ KITEM: F = randbook numspells:4 spells:starburst&fireball&sticky_flame&flame_wav
 KITEM: _ = manual of invocations
 COLOUR:    r = red, y = yellow, b = blue, g = green, \
            m = magenta, q = cyan, c = magenta, S = electricity
-FTILE:     .1234ST_G+ = floor_zot_diamonds
+FTILE:     .1234STDZF_G+ = floor_zot_diamonds
 TILE:      r = dngn_transparent_stone_red, y = dngn_transparent_stone_yellow, \
            b = dngn_transparent_stone_blue, m = dngn_transparent_stone_magenta, \
            g = dngn_transparent_stone_green, q = dngn_transparent_stone
@@ -3483,7 +3483,7 @@ KMONS:   Z = killer klown ; club randart plus:12 ego:chaos / \
 KITEM:   BEHKN = $ w:15 / % w:25 / *
 KITEM:   z = any good_item
 KITEM:   Z = superb_item
-KFEAT:   ^ = harlequin's trap
+KFEAT:   ^ = trap_harlequin
 # Rotates out loot, upstairs, downstairs,
 # both (in an enclosed bubble), or nothing, at either end.
 SHUFFLE: defg{>Z' / defg{<'' / fgde>{'Z / fgde<{'' / defg'|Z' / fgde|''Z / \
@@ -3812,8 +3812,8 @@ KFEAT:   T = fountain_eyes
 # Altars obliquely refer to those temple maps.
 KFEAT:   C = altar_ecumenical
 KFEAT:   D = altar_lugonu / altar_jiyva / altar_beogh w:5 / altar_ignis w:5
-KFEAT:   ~ = zot trap
-KFEAT:   ^ = archmage's trap / harlequin's trap / zot trap w:2
+KFEAT:   ~ = trap_zot
+KFEAT:   ^ = trap_archmage / trap_harlequin / trap_zot w:2
 KFEAT:   y = x
 SHUFFLE: Xy / Xy / Xy / Aa
 NSUBST:  A = 1:. / 19 = X:9 .:1 / *:X
@@ -4010,7 +4010,7 @@ DEPTH:   Zot, !Zot:$
 ORIENT:  float
 MONS:    killer klown, ancient lich / dread lich, death cob
 KFEAT:   a = iron_grate
-KFEAT:   ^ = dispersal trap
+KFEAT:   ^ = trap_dispersal
 NSUBST:  - = 2 / 3 = 3.. / *:.
 : if (crawl.coinflip()) then
 NSUBST:  > = 1 = }:80 > / 1 = ):80 > / 1 = ]:80 >, G = 4:G / *:U
@@ -4057,7 +4057,7 @@ DEPTH:   Zot, !Zot:$
 ORIENT:  float
 SUBST:   x : x b:1
 SUBST:   < = {[(
-KFEAT:   ^ = alarm trap w:5 / zot trap / harlequin's trap w:5
+KFEAT:   ^ = trap_alarm w:5 / trap_zot / trap_harlequin w:5
 KFEAT:   X = x
 # The possible acts:
 MONS:    red draconian scorcher, red draconian, juggernaut
@@ -4074,7 +4074,7 @@ NSUBST:  C = 5 / 6 / 2 = 6. / *:.
 NSUBST:  D = 3 = qqp / 9 = p. / 9 = - / *:.
 KMONS:   p = grey draconian
 KMONS:   q = grey draconian monk
-KFEAT:   - = net trap
+KFEAT:   - = trap_net
 # The Beasts: moths and Dragons
 NSUBST:  E = 3 = r. / 6 = ss. / *:.
 KMONS:   r = moth of wrath / ghost moth
@@ -4179,7 +4179,7 @@ KMONS:  s = killer klown-shaped pillar of salt
 KMONS:  f = butterfly
 KFEAT:  _ = altar_zin
 KFEAT:  O = altar_xom
-KFEAT:  ^ = dispersal trap
+KFEAT:  ^ = trap_dispersal
 KFEAT:  t = demonic_tree
 NSUBST: - = 4=s / 4=s- / -
 NSUBST: ? = O / 2=^ / 2=2 / 2=2? / 2:tG / ?
@@ -4559,8 +4559,8 @@ KMONS:  2 = protean progenitor w:14 / juggernaut / draconian monk /\
 # XXX: Very awkward to see the rewards without knowledge of ctrl-x.
 KITEM:  1 = | no_pickup / any weapon ego:chaos good_item no_pickup w:5
 KITEM:  2 = orb no_pickup / orb randart no_pickup w:5
-KFEAT:  ^ = harlequin's trap
-KFEAT:  ~ = tyrant's trap
+KFEAT:  ^ = trap_harlequin
+KFEAT:  ~ = trap_tyrant
 NSUBST: ~ = 4:^ / 4=^~~` / *:`, 1 = 2:1 / * = 12
 SUBST:  g = g-, G = GGg-
 KPROP:  '`-*12^~QRgG = no_tele_into
@@ -4609,17 +4609,17 @@ KITEM:   Z = Orb of Zot
 KFEAT:   Z = orb dais
 # Traps to spread throughout the vault. Fewer alarm traps as those have a big
 # effect on the vault as a whole.
-KFEAT:   ~ = zot trap / dispersal trap / permanent teleport trap / net trap \
-             / alarm trap w:5
+KFEAT:   ~ = trap_zot / trap_dispersal / trap_teleport_permanent / trap_net \
+             / trap_alarm w:5
 # Flat distribution of traps for specific sections.
-KFEAT:   ^ = zot trap / dispersal trap / permanent teleport trap / alarm trap \
-             / net trap
+KFEAT:   ^ = trap_zot / trap_dispersal / trap_teleport_permanent / trap_alarm \
+             / trap_net
 # Weaker trap lua for replacing the old rare double-trapped entrances option.
 {{
-local weaker_t = { { t = "tyrant's trap", weight = 12 },
-                   { t = "harlequin's trap w:7", weight = 10 },
-                   { t = "archmage's trap", weight = 7 },
-                   { t = "devourer's trap w:5", weight = 5}, }
+local weaker_t = { { t = "trap_tyrant", weight = 12 },
+                   { t = "trap_harlequin w:7", weight = 10 },
+                   { t = "trap_archmage", weight = 7 },
+                   { t = "trap_devourer w:5", weight = 5}, }
 local t_choice_a = util.random_weighted_from("weight", weaker_t)
 local t_choice_b = t_choice_a
 while t_choice_a == t_choice_b do

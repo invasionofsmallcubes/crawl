@@ -1250,34 +1250,39 @@ spret summon_shadow_creatures()
     return spret::success;
 }
 
-bool can_cast_malign_gateway()
+bool can_cast_malign_gateway(const actor& caster)
 {
-    timeout_malign_gateways(0);
-
-    return count_malign_gateways() < 1;
+    return count_malign_gateways(caster) < 1;
 }
 
-static bool _is_malign_gateway_summoning_spot(const actor& caster,
-    const coord_def location,
-    bool targeting)
+bool is_gateway_target(const actor& caster, coord_def location, bool only_known)
 {
+    const int dist = grid_distance(caster.pos(), location);
+
+    // location is too close or too far
+    if (dist < 2 || dist > you.current_vision)
+        return false;
+
     if (!in_bounds(location)
         || !feat_is_malign_gateway_suitable(env.grid(location)))
     {
         return false;
     }
 
+    if (!caster.see_cell_no_trans(location))
+        return false;
+
     const actor* const creature = actor_at(location);
     if (creature)
     {
-        if (!targeting)
+        if (!only_known)
             return false;
 
         if (creature->visible_to(&caster))
             return false;
     }
 
-    if (targeting)
+    if (only_known)
     {
         for (adjacent_iterator ai(location); ai; ++ai)
         {
@@ -1289,56 +1294,15 @@ static bool _is_malign_gateway_summoning_spot(const actor& caster,
     else if (count_neighbours_with_func(location, &feat_is_solid) != 0)
         return false;
 
-    if (!caster.see_cell_no_trans(location))
-        return false;
-
     return true;
-}
-
-bool is_gateway_target(const actor& caster, coord_def location)
-{
-    const coord_def delta = location - caster.pos();
-
-    // location is to close
-    if (delta.rdist() < 2)
-        return false;
-
-    int abs_x = abs(delta.x);
-    int abs_y = abs(delta.y);
-
-    // Monster range of vision is equal to player range of vision, so this
-    // is accurate for mosters to.
-    const int current_vision = you.current_vision;
-
-    // location is to far
-    if (abs_x > current_vision || abs_y > current_vision)
-        return false;
-
-    return _is_malign_gateway_summoning_spot(caster, location, true);
 }
 
 coord_def find_gateway_location(actor* caster)
 {
     vector<coord_def> points;
-
-    // Monster range of vision is equal to player range of vision, so this
-    // is accurate for mosters to.
-    const int current_vision = you.current_vision;
-
-    for (int x = -current_vision; x <= current_vision; ++x)
-    {
-        for (int y = -current_vision; y <= current_vision; ++y)
-        {
-            const coord_def delta{ x, y };
-            // location is to close
-            if (delta.rdist() < 2)
-                continue;
-
-            const coord_def test = caster->pos() + delta;
-            if (_is_malign_gateway_summoning_spot(*caster, test, false))
-                points.push_back(test);
-        }
-    }
+    for (radius_iterator ri(caster->pos(), LOS_NO_TRANS, true); ri; ++ri)
+        if (is_gateway_target(*caster, *ri, false))
+            points.push_back(*ri);
 
     if (points.empty())
         return coord_def(0, 0);
@@ -1346,21 +1310,19 @@ coord_def find_gateway_location(actor* caster)
     return points[random2(points.size())];
 }
 
-void create_malign_gateway(coord_def point, beh_type beh, string cause,
-                           int pow, bool is_player)
+void create_malign_gateway(coord_def point, mid_t owner, beh_type beh,
+                           string cause, int pow)
 {
-    const int malign_gateway_duration = BASELINE_DELAY * (random2(2) + 1);
+    const int malign_gateway_delay = BASELINE_DELAY * random_range(2, 3)
+                                        + (owner == MID_PLAYER ? player_speed() : 0);
     env.markers.add(new map_malign_gateway_marker(point,
-                            malign_gateway_duration,
-                            is_player,
-                            is_player ? "" : cause,
-                            beh,
-                            GOD_NO_GOD,
-                            pow));
-    env.markers.clear_need_activate();
-    env.grid(point) = DNGN_MALIGN_GATEWAY;
-    set_terrain_changed(point);
-
+                            malign_gateway_delay,
+                            pow,
+                            fuzz_value(300, 60, 40),
+                            owner,
+                            cause,
+                            beh));
+    temp_change_terrain(point, DNGN_MALIGN_GATEWAY, INFINITE_DURATION, TERRAIN_CHANGE_MALIGN_GATEWAY);
     noisy(spell_effect_noise(SPELL_MALIGN_GATEWAY), point);
     mprf(MSGCH_WARN, "The dungeon shakes, a horrible noise fills the air, "
                      "and a portal to some otherworldly place is opened!");
@@ -1387,13 +1349,12 @@ spret cast_malign_gateway(actor * caster, int pow, bool fail, bool test)
 
         create_malign_gateway(
             point,
+            caster->mid,
             is_player ? BEH_FRIENDLY
                       : attitude_creation_behavior(
                           caster->as_monster()->attitude),
-            is_player ? ""
-                      : caster->as_monster()->full_name(DESC_A),
-            pow,
-            is_player);
+            "",
+            pow);
 
         return spret::success;
     }
@@ -1910,9 +1871,7 @@ spret cast_battlesphere(actor* agent, int pow, bool fail)
     else
     {
         ASSERT(!find_battlesphere(agent));
-        mgen_data mg (MONS_BATTLESPHERE,
-                      agent->is_player() ? BEH_FRIENDLY
-                                         : SAME_ATTITUDE(agent->as_monster()),
+        mgen_data mg (MONS_BATTLESPHERE, SAME_ATTITUDE(agent),
                       agent->pos(), agent->mindex());
         mg.set_summoned(agent, SPELL_BATTLESPHERE, random_range(300, 500), false);
         mg.hd = _battlesphere_hd(pow);
@@ -2229,9 +2188,7 @@ spret cast_fulminating_prism(actor* caster, int pow, const coord_def& where,
     mgen_data prism_data = mgen_data(is_shadow
                                         ? MONS_SHADOW_PRISM
                                         : MONS_FULMINANT_PRISM,
-                                     caster->is_player()
-                                        ? BEH_FRIENDLY
-                                        : SAME_ATTITUDE(caster->as_monster()),
+                                     SAME_ATTITUDE(caster),
                                      where, MHITNOT, MG_FORCE_PLACE);
     prism_data.set_summoned(caster, is_shadow ? SPELL_SHADOW_PRISM
                                               : SPELL_FULMINANT_PRISM, 0, false, false);
@@ -2377,8 +2334,7 @@ monster* create_spectral_weapon(const actor &agent, coord_def pos,
                                 item_def& weapon)
 {
     mgen_data mg(MONS_SPECTRAL_WEAPON,
-                 agent.is_player() ? BEH_FRIENDLY
-                                  : SAME_ATTITUDE(agent.as_monster()),
+                 SAME_ATTITUDE(&agent),
                  pos,
                  agent.mindex(),
                  MG_FORCE_BEH | MG_FORCE_PLACE);
@@ -2480,7 +2436,7 @@ static const map<spell_type, summon_cap> summonsdata =
     // Monster-only spells
     { SPELL_SHADOW_CREATURES,         { 0, 4 } },
     { SPELL_SUMMON_SPIDERS,           { 0, 5 } },
-    { SPELL_SUMMON_UFETUBUS,          { 0, 8 } },
+    { SPELL_UFETUBI_SWARM,            { 0, 8 } },
     { SPELL_SUMMON_SIN_BEAST,         { 0, 5 } },
     { SPELL_SUMMON_UNDEAD,            { 0, 8 } },
     { SPELL_SUMMON_DRAKES,            { 0, 4 } },
@@ -2659,8 +2615,8 @@ static bool _create_briar_patch(coord_def& target)
 {
     mgen_data mgen = mgen_data(MONS_BRIAR_PATCH, BEH_FRIENDLY, target,
             MHITNOT, MG_FORCE_PLACE, GOD_FEDHAS);
-    mgen.hd = mons_class_hit_dice(MONS_BRIAR_PATCH) +
-        you.skill_rdiv(SK_INVOCATIONS);
+    mgen.hd = mons_class_hit_dice(MONS_BRIAR_PATCH) / 2 +
+                you.skill_rdiv(SK_INVOCATIONS, 1, 2);
     mgen.set_summoned(&you, SPELL_NO_SPELL,
                         summ_dur(min(2 + you.skill_rdiv(SK_INVOCATIONS, 1, 5), 6)));
 
@@ -2717,7 +2673,7 @@ void fedhas_wall_of_briars()
 static void _overgrow_wall(const coord_def &pos)
 {
     const dungeon_feature_type feat = env.grid(pos);
-    const string what = feature_description(feat, NUM_TRAPS, "", DESC_THE);
+    const string what = feature_description(feat, "", DESC_THE);
 
     if (monster_at(pos))
     {
@@ -2925,8 +2881,7 @@ spret kiku_unearth_wretches(bool fail)
 static bool _create_foxfire(const actor &agent, coord_def pos, int pow,
                             bool marshlight = false)
 {
-    const auto att = agent.is_player() ? BEH_FRIENDLY
-                                       : SAME_ATTITUDE(agent.as_monster());
+    const auto att = SAME_ATTITUDE(&agent);
     mgen_data fox(MONS_FOXFIRE, att,
                   pos, (att != BEH_FRIENDLY && agent.is_monster())
                             ? agent.as_monster()->foe : int{MHITNOT},
@@ -3154,9 +3109,7 @@ spret cast_broms_barrelling_boulder(actor& agent, coord_def targ, int pow, bool 
     }
 
     mgen_data mg = mgen_data(MONS_BOULDER,
-                             agent.is_player()
-                                ? BEH_FRIENDLY
-                                : SAME_ATTITUDE(agent.as_monster()),
+                             SAME_ATTITUDE(&agent),
                              pos, _auto_autofoe(&agent), MG_FORCE_PLACE);
     mg.set_summoned(&agent, SPELL_BOULDER);
     mg.hp = barrelling_boulder_hp(pow);
@@ -3363,6 +3316,12 @@ static bool _hellfire_stops_here(bolt& beam, coord_def pos)
                   || !beam.can_affect_wall(pos));
 }
 
+int hellfire_mortar_cooldown_length(int lava_length)
+{
+    // This should be equal to the duration of the longest lasting lava
+    return ((lava_length - 1) * BASELINE_DELAY) / 2 + 1;
+}
+
 spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
 {
     // Determine path by firing digging tracer
@@ -3407,7 +3366,7 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
     }
 
     // Make the lava
-    int dur = len * 3 / 2 * BASELINE_DELAY;
+    int lava_length = 0;
     for (int i = 0; i < len; ++i)
     {
         const coord_def pos = beam.path_taken[i];
@@ -3428,9 +3387,10 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
             break;
         }
 
-        temp_change_terrain(beam.path_taken[i], DNGN_LAVA,
-                            dur - (i * BASELINE_DELAY / 2),
-                            TERRAIN_CHANGE_HELLFIRE_MORTAR);
+        const int dur = ((len - i - 1) * BASELINE_DELAY) / 2 + 1;
+        temp_change_terrain(pos, DNGN_LAVA, dur, TERRAIN_CHANGE_HELLFIRE_MORTAR);
+
+        lava_length = i + 1;
 
         flash_tile(pos, RED, 5);
     }
@@ -3439,7 +3399,10 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
 
     mgen_data mg = _summon_data(agent, MONS_HELLFIRE_MORTAR, 0,
                                 SPELL_HELLFIRE_MORTAR);
-    mg.set_summoned(&agent, SPELL_HELLFIRE_MORTAR, dur, false, false);
+    // Duration is arbitrarily long so that very slow actions won't cause the
+    // mortar to skip shots before disappearing. It will still end at the end
+    // of its path, no matter remaining duration.
+    mg.set_summoned(&agent, SPELL_HELLFIRE_MORTAR, 500, false, false);
     mg.flags |= MG_FORCE_PLACE;
     mg.pos = beam.path_taken[0];
     mg.hd = _hellfire_mortar_hd(pow);
@@ -3455,19 +3418,24 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
         return spret::success;
     }
 
-    // Store the cannon's movement path
+    // Store the cannon's movement path and assign it ownership of the terrain change
     CrawlVector& path = cannon->props[HELLFIRE_PATH_KEY].get_vector();
-    for (unsigned int i = 0; i < beam.path_taken.size(); ++i)
+    for (int i = 0; i < lava_length; ++i)
     {
-        const coord_def pos = beam.path_taken[i];
-        path.push_back(pos);
+        path.push_back(beam.path_taken[i]);
+        for (map_marker* mark : env.markers.get_markers_at(beam.path_taken[i], MAT_TERRAIN_CHANGE))
+        {
+            map_terrain_change_marker* tmark = dynamic_cast<map_terrain_change_marker*>(mark);
+            if (tmark->change_type == TERRAIN_CHANGE_HELLFIRE_MORTAR)
+                tmark->source_mid = cannon->mid;
+        }
     }
 
     mprf("With a deafening crack, the ground splits apart in the path of %s "
         "chthonic artillery!", agent.name(DESC_ITS).c_str());
 
     if (agent.is_player())
-        you.duration[DUR_HELLFIRE_MORTAR_COOLDOWN] = dur;
+        you.duration[DUR_HELLFIRE_MORTAR_COOLDOWN] = lava_length * BASELINE_DELAY + hellfire_mortar_cooldown_length(lava_length);
 
     return spret::success;
 }
@@ -3951,6 +3919,29 @@ bool surprising_crocodile_can_drag(const actor& agent, const coord_def& target,
 
 spret cast_surprising_crocodile(actor& agent, const coord_def& targ, int pow, bool fail)
 {
+    const coord_def start_pos = agent.pos();
+    const coord_def drag_shift = -(targ - agent.pos()).sgn();
+
+    // Check for traps where the player expects to move.
+    if (agent.is_player())
+    {
+        coord_def one_square_move = agent.pos() + drag_shift;
+        const string verb = "ride";
+        if (surprising_crocodile_can_drag(agent, targ, false))
+        {
+            // The player will end up in one_square_move + drag_shift, and the
+            // crocodile in one_square_move. Check the crocodile position only
+            // for traps, which it will trigger.
+            if (!check_moveto_trap(one_square_move, verb)
+                || !check_moveto(one_square_move + drag_shift, verb))
+            {
+                return spret::abort;
+            }
+        }
+        else if (!check_moveto(one_square_move, verb))
+            return spret::abort;
+    }
+
     fail_check();
 
     // The targeter will prevent casting this at times where the player *knows*
@@ -3968,8 +3959,6 @@ spret cast_surprising_crocodile(actor& agent, const coord_def& targ, int pow, bo
     // move one tile back or two.
     bool can_drag = surprising_crocodile_can_drag(agent, targ, true);
 
-    const coord_def start_pos = agent.pos();
-    const coord_def drag_shift = -(targ - agent.pos()).sgn();
     coord_def agent_pos = agent.pos() + drag_shift;
     if (can_drag)
         agent_pos += drag_shift;
@@ -4215,7 +4204,7 @@ void paragon_attack_trigger()
         return;
 
     mpr("Your paragon attacks with you!");
-    fight_melee(paragon, targ);
+    mons_fight(paragon, targ);
     paragon->speed_increment += paragon->action_energy(EUT_ATTACK);
     you.did_trigger(DID_PARAGON);
 }
@@ -4434,9 +4423,7 @@ spret cast_monarch_bomb(const actor& agent, int pow, bool fail)
 bool monarch_deploy_bomblet(monster& original, const coord_def& target,
                             bool quiet)
 {
-    mgen_data mg = mgen_data(MONS_BOMBLET, original.friendly()
-                                                ? BEH_FRIENDLY
-                                                : BEH_HOSTILE,
+    mgen_data mg = mgen_data(MONS_BOMBLET, SAME_ATTITUDE(&original),
                              target, MG_AUTOFOE);
     mg.set_summoned(actor_by_mid(original.summoner),
                     SPELL_MONARCH_BOMB, random_range(90, 160), false);
@@ -4549,45 +4536,19 @@ static bool _push_line_back(const coord_def& center, const coord_def& dir)
     return !actor_at(center + dir);
 }
 
+static bool _wall_is_okay(const coord_def& pos, bool water_okay)
+{
+    return !cell_is_solid(pos)
+            && env.grid(pos) != DNGN_LAVA
+            && (water_okay || env.grid(pos) != DNGN_DEEP_WATER)
+            && !feat_is_trap(env.grid(pos));
+}
 
 vector<coord_def> get_wall_ring_spots(const coord_def& center,
                                       const coord_def& aim,
                                       int num_walls, bool water_okay)
 {
-    vector<coord_def> spots;
-
-    // Convert aim to a compass direction
-    coord_def delta = (aim - center).sgn();
-
-    int dir = 0;
-    for (int i = 0; i < 8; ++i)
-    {
-        if (Compass[i] == delta)
-        {
-            dir = i;
-            break;
-        }
-    }
-
-    // Now choose adjacent compass spots to test
-    int start = dir - ((num_walls - 1) / 2);
-    if (start < 0)
-        start = start + 8;
-
-    for (int i = start; i < start + num_walls; ++i)
-    {
-        const int index = i % 8;
-        const coord_def spot = center + Compass[index];
-        if (in_bounds(spot) && !cell_is_solid(spot)
-            && env.grid(spot) != DNGN_LAVA
-            && (water_okay || env.grid(spot) != DNGN_DEEP_WATER)
-            && !feat_is_trap(env.grid(spot)))
-        {
-            spots.push_back(spot);
-        }
-    }
-
-    return spots;
+    return get_ring_spots(center, aim, num_walls, bind(_wall_is_okay, placeholders::_1, water_okay));
 }
 
 spret cast_splinterfrost_shell(const actor& agent, const coord_def& aim,
@@ -4624,7 +4585,16 @@ spret cast_splinterfrost_shell(const actor& agent, const coord_def& aim,
     }
 
     if (num_created > 0)
-        mprf("You construct a shell of ice in front of yourself.");
+    {
+        if (agent.is_player())
+            mprf("You construct a shell of ice in front of yourself.");
+        else if (you.can_see(agent))
+        {
+            mprf("%s constructs a shell of ice in front of %s.",
+                    agent.name(DESC_THE).c_str(),
+                    agent.pronoun(PRONOUN_REFLEXIVE).c_str());
+        }
+    }
     else
         canned_msg(MSG_NOTHING_HAPPENS);
 
@@ -4637,12 +4607,13 @@ bool splinterfrost_block_fragment(monster& block, const coord_def& aim)
     actor* agent = actor_by_mid(block.summoner);
 
     bolt beam;
-    zappy(ZAP_SPLINTERFROST_FRAGMENT, pow, false, beam);
+    zappy(ZAP_SPLINTERFROST_FRAGMENT, pow, !agent->is_player(), beam);
     beam.source = block.pos();
     beam.attitude = block.attitude;
     beam.set_agent(agent);
     beam.target = aim;
     beam.range = LOS_RADIUS;
+    beam.seen = true;
     beam.stop_at_allies = true;
 
     string msg;

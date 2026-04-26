@@ -66,7 +66,7 @@ static void _ouch(actor& target, const actor * source, int dam,
         kt = KILL_YOU_MISSILE;
     else if (source && source->is_monster())
         if (source->as_monster()->confused_by_you()
-            && !source->as_monster()->friendly())
+            && !source->friendly())
         {
             kt = KILL_YOU_CONF;
         }
@@ -86,9 +86,8 @@ static void _ouch(actor& target, const actor * source, int dam,
     }
     else
     {
-        bool see_source = source && you.can_see(*source);
         ouch(dam, KILLED_BY_DEATH_CURSE, source ? source->mid : MID_NOBODY,
-             cause.c_str(), see_source,
+             cause.c_str(),
              source ? source->name(DESC_A, true).c_str() : nullptr);
     }
 }

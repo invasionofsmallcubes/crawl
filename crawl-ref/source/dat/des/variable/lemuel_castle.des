@@ -112,7 +112,7 @@ function castle_lemuel_setup(e)
        end
    end
    e.kmons("p = plant / fungus w:1")
-   e.kfeat("~ = alarm trap w:1 / floor")
+   e.kfeat("~ = trap_alarm w:1 / floor")
    e.kfeat("m = iron_grate")
    e.kfeat("M = cache_of_meat")
    e.subst("D = c +:1")

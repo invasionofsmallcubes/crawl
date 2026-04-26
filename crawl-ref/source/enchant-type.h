@@ -65,8 +65,8 @@ enum enchant_type
     ENCH_EXPLODING,
 #if TAG_MAJOR_VERSION == 34
     ENCH_BLEED,
-#endif
     ENCH_PORTAL_TIMER,
+#endif
     ENCH_SEVERED,
     ENCH_ANTIMAGIC,
 #if TAG_MAJOR_VERSION == 34
@@ -112,7 +112,7 @@ enum enchant_type
     ENCH_OZOCUBUS_ARMOUR,
 #endif
     ENCH_WRETCHED,       // An abstract placeholder for monster mutations
-    ENCH_SCREAMED,       // Starcursed scream timer
+    ENCH_ABILITY_COOLDOWN,
     ENCH_WORD_OF_RECALL, // Chanting word of recall
     ENCH_INJURY_BOND,
 #if TAG_MAJOR_VERSION == 34
@@ -252,6 +252,8 @@ enum enchant_type
     ENCH_DIMINISHED_SPELLS,
     ENCH_ORB_COOLDOWN,
     ENCH_SUNDER_CHARGE,
+    ENCH_EXPOSED,
+    ENCH_BRAMBLE_COOLDOWN,
     // Update enchant_names[] in mon-ench.cc when adding or removing
     // enchantments.
     NUM_ENCHANTMENTS

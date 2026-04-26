@@ -65,7 +65,7 @@ ENDMAP
 #
 NAME:   pressure_test
 WEIGHT: 0
-KFEAT:  ^ = pressure plate trap
+KFEAT:  ^ = trap_pressure_plate
 {{
 -- need to make it repeated since there may be a monster under the grate
 local tm = TriggerableFunction:new{func="pressure_test_stepped",

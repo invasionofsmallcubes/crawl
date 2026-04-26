@@ -1332,7 +1332,7 @@ NAME:  nicolae_lair_grabbed_some_dinner
 TAGS:  transparent extra lairdec
 DEPTH: Lair, !Lair:$
 KMONS: Pp = plant
-KFEAT: ^ = shaft trap
+KFEAT: ^ = shaft
 SUBST: s = tt., - = p., ! = P`, ' = .`
 KPROP: `P^ = bloody
 MAP
@@ -1403,7 +1403,7 @@ DEPTH:  Lair, !Lair:$
 KMONS:  p = bush / plant w:5 / nothing w:1
 KMONS:  P = bush
 KITEM:  S = yak skeleton / dream sheep skeleton / human skeleton w:5
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 NSUBST: ` = 2=P / `P / S / 2=`S / `
 SUBST:  ` = `..
 KPROP:  PS` = bloody
@@ -4552,7 +4552,7 @@ ORIENT:  float
 MONS:    black mamba, steam dragon
 MONS:    hell hound, molten gargoyle
 MONS:    komodo dragon / wyvern w:7 / basilisk w:7 / hydra w:2
-MONS:    lindwurm / fire crab w:3, fire dragon / mountainshell w:2
+MONS:    lindwurm / fire crab w:3, fire dragon
 KMONS:   8 = hell hog
 KMONS:   Y = lava snake
 KFEAT:   Y = lava

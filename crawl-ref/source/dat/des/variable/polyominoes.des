@@ -714,19 +714,18 @@ MAP
     ....
 ENDMAP
 
-NAME: minmay_heptomino_l4
+NAME: regret_index_heptomino_l4
 : polyominoes_setup(_G, false)
 MAP
-  ......
-  .xxxx.
-...x..0...
-.x0x.xxxx.
-.x.x%%..x.
-.x..%%x.x.
-.xxxx.x0x.
-...0..x...
-  .xxxx.
-  ......
+     ...... ...
+     .xxxx.0.x.
+     .x%.....x.
+......x%.....x.
+.xxxx0x.x0xxxx.
+.x.....%x......
+.x.....%x.
+.x.0.xxxx.
+... ......
 ENDMAP
 
 ################################################################################

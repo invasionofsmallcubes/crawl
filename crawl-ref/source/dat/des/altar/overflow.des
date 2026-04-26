@@ -140,8 +140,8 @@ function callback.five_deadly_venoms(data, triggerable, triggerer, marker, ev)
 end
 
 function species_mock(e)
-  if you.race() == "Armataur" then
-    return "rat"
+  if you.race() == "Gale Centaur" then
+    return "wind drake"
   elseif you.race() == "Barachi" then
     return "cane toad"
   elseif you.race() == "Coglin" then
@@ -1966,6 +1966,7 @@ MONS:   zombie, wight, burial acolyte
 :   else
 MONS:   zombie, phantom, shadow imp, draugr ; dagger
 :   end
+FTILE:  .+?1234_ = floor_necro_squares
 : end
 NSUBST: ? = 1:_ / *:1
 SUBST:  1 = 1:30 2 3 4:5
@@ -2107,10 +2108,11 @@ MONS:    patrolling burial acolyte, patrolling shadow imp
 MONS:    kobold zombie / gnoll zombie, adder zombie / hound zombie
 SHUFFLE: ABCD
 NSUBST:  A = 1:2 / *:3, B = 1:2 / *:4
-SUBST:   C = $, D = .
+SUBST:   C = $, D = `
 SUBST:   X : x', Y : x', y : x., z : c.., G : Gxx
 : vault_metal_statue_setup(_G, "G", "soul conduit")
 CLEAR:   '
+FTILE:   `_$1234+ = floor_necro_squares
 : standard_overflow_setup(_G, { { "kikubaaqudgha", "_" } }, true)
 MAP
  Xxxxx.....xxxxY
@@ -2120,9 +2122,9 @@ xAxxxx.....xxxxxx
 xAAxGc..z..cxxxxx
 xx+xc.......xxxx
 ......cc+cc
-.y....c4.3c
-......+._.c
-.y....c3.1c
+.y....c4`3c
+......+`_`c
+.y....c3`1c
 ......ccccc
 xx+xc.
 xDDxxx
@@ -2254,7 +2256,8 @@ KMONS:  2 = spectral hound
 : end
 KFEAT:  X = x
 KPROP:  y' = bloody
-TILE:   X = wall_hall
+TILE:   X = wall_baleful / wall_hall_darkgray
+TILE:   c = dngn_stone_wall_darkgray
 SUBST:  ' = ., y = x, G = GGx
 : vault_metal_statue_setup(_G, "G", "mystic cage")
 : standard_overflow_setup(_G, { { "makhleb", "_" } }, true)
@@ -2266,9 +2269,9 @@ MAP
  xxxxxx.'yx
  xxxGxxy'.x
 xxxx.'y'.xx
-xXX.12'.xx
+xcc.12'.xx
 xXA_'.xxx
-xXX..xxx
+xcc..xxx
 xxxxxx
 ENDMAP
 
@@ -2279,12 +2282,13 @@ DEPTH:  D:4-7
 KMONS:  _ = patrolling hound
 KFEAT:  X = x
 SUBST:  y = xx., G = GXXX
-TILE:   X = wall_hall
+TILE:   X : wall_baleful / wall_hall_darkgray
+TILE:   c = dngn_stone_wall_darkgray
 : vault_metal_statue_setup(_G, "G", "mystic cage")
 : standard_overflow_setup(_G, { { "makhleb", "_" } }, true)
 MAP
  xxxxx
-xxXGXxx
+xxcGcxx
 xyXAXyx
 x.._..x
 xy...yx
@@ -2560,7 +2564,7 @@ ENDMAP
 NAME:   nemelex_spade_bored_becter
 TAGS:   transparent decor no_rotate no_vmirror no_monster_gen no_item_gen
 :  if you.depth() ~= dgn.br_depth(you.branch()) then
-KFEAT:  a = shaft trap
+KFEAT:  a = shaft
 :  end
 NSUBST: ' = 6:a / *:.
 COLOUR: x = darkgray
@@ -2647,7 +2651,7 @@ KITEM:   ~ = damaged short sword ego:heavy / \
              damaged sling ego:flaming / damaged whip ego:freezing
 KITEM:   ! = any potion q:1 / any scroll q:1 w:5
 KFEAT:   % = cache_of_fruit
-KFEAT:   ^ = teleport trap
+KFEAT:   ^ = trap_teleport
 KFEAT:   HIJ = G
 SUBST:   s = $
 FTILE:   '!1 = floor_pebble_red
@@ -2764,7 +2768,7 @@ NAME:   okawaru_metal_pillars_3
 TAGS:   transparent decor vaults_empty
 DEPTH:  D:3-, Vaults, Orc
 WEIGHT: 3
-KFEAT:  ^ = tyrant's trap
+KFEAT:  ^ = trap_tyrant
 : if not you.in_branch("Vaults") then
 SUBST:  ^ = .
 : end
@@ -3020,7 +3024,7 @@ ENDMAP
 NAME:   grunt_qazlal_sundering
 TAGS:   no_monster_gen no_item_gen no_trap_gen
 : if you.depth() ~= dgn.br_depth(you.branch()) then
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 : else
 KFEAT:  ^ = floor
 : end
@@ -3405,7 +3409,7 @@ DEPTH:  D:3-, Lair, Depths
 KMONS:  p = plant / fungus w:3
 NSUBST: r = 3=^ / ^p / 7=p / 2:p. / ., i = ^^p. / 2=p / .
 NSUBST: D = . / xxp / x, E = . / xxp / x, F = xxp / .
-KFEAT:  ^ = web trap
+KFEAT:  ^ = web
 : standard_overflow_setup(_G, { { "ru", "_" } }, true)
 MAP
 xxxxxxx
@@ -3763,7 +3767,7 @@ NAME:   nicolae_sif_muna_archmage's_trap
 TAGS:   transparent no_pool_fixup
 DEPTH:  D:3-10
 KMONS:  1 = orc wizard
-KFEAT:  ~ = archmage's trap
+KFEAT:  ~ = trap_archmage
 COLOUR: @` = blue
 FTILE:  @`~_ = floor_mystic_chasm
 : standard_overflow_setup(_G, { { "sif_muna", "_" } }, true)
@@ -3928,7 +3932,7 @@ NSUBST: ' = 3:2 / *:.
 SUBST:  y = x, " = .
 KPROP:  1y" = bloody
 : if you.depth() ~= dgn.br_depth(you.branch()) then
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 : end
 KFEAT:  m = iron_grate
 : standard_overflow_setup(_G, { { "trog", "_" } }, true)
@@ -4783,14 +4787,14 @@ MONS:   orc ; club ego:chaos | dagger ego:chaos | spear ego:chaos
 MONS:   gnoll ; club ego:chaos | dagger ego:chaos | spear ego:chaos
 MONS:   boggart ; flail ego:chaos | rapier ego:chaos | trident ego:chaos
 MONS:   tengu warrior ; flail ego:chaos | rapier ego:chaos | trident ego:chaos
-MONS:   occultist ; dire flail ego:chaos | scimitar ego:chaos | partisan ego:chaos
-MONS:   rakshasa ; dire flail ego:chaos | scimitar ego:chaos | partisan ego:chaos
+MONS:   occultist ; dire flail ego:chaos | athame ego:chaos | partisan ego:chaos
+MONS:   rakshasa ; dire flail ego:chaos | athame ego:chaos | partisan ego:chaos
 ITEM:   gold q:1 no_pickup
 KFEAT:  _ = altar_xom
 :  if you.depth() == dgn.br_depth(you.branch()) then
-KFEAT:  ~ = teleport trap w:20 / harlequin's trap w:3 / dispersal trap
+KFEAT:  ~ = trap_teleport w:20 / trap_harlequin w:3 / trap_dispersal
 :  else
-KFEAT:  ~ = shaft trap / teleport trap / harlequin's trap w:3 / dispersal trap
+KFEAT:  ~ = shaft / trap_teleport / trap_harlequin w:3 / trap_dispersal
 :  end
 NSUBST: " = 1:_ / 1:*% / 8:M / *:?, G = 1:G / 1:bvGGTU~ / 2 = vGl~???? / * = '?
 NSUBST: ' = 10 = W:60 w:50 x:20 n:80 v / 8:d / * = xxxxnv
@@ -4824,7 +4828,7 @@ ENDMAP
 NAME:    xom_teletrap_fun
 TAGS:    transparent decor
 NSUBST:  T = . / T
-KFEAT:   T = teleport trap
+KFEAT:   T = trap_teleport
 : standard_overflow_setup(_G, { { "xom", "_" } }, true)
 MAP
 .....
@@ -4900,13 +4904,13 @@ NAME:    xom_redecorated
 TAGS:    decor no_pool_fixup
 KMONS:   C = brain worm
 KFEAT:   C = altar_xom
-KFEAT:   ^ = teleport trap
+KFEAT:   ^ = trap_teleport
 : if you.in_branch("Depths") then
-KFEAT:   ~ = teleport trap / alarm trap / dispersal trap / harlequin's trap w:15
+KFEAT:   ~ = trap_teleport / trap_alarm / trap_dispersal / trap_harlequin w:15
 : elseif you.depth() == dgn.br_depth(you.branch()) then
-KFEAT:   ~ = teleport trap / alarm trap / dispersal trap
+KFEAT:   ~ = trap_teleport / trap_alarm / trap_dispersal
 : else
-KFEAT:   ~ = shaft trap / teleport trap / alarm trap / dispersal trap
+KFEAT:   ~ = shaft / trap_teleport / trap_alarm / trap_dispersal
 : end
 SUBST:   c = ccxxxv
 : if you.absdepth() > 3 and you.absdepth() < 7 then
@@ -4936,7 +4940,7 @@ DEPTH:  D:3-, Orc
 MONS:   crimson imp ; stone, crimson imp ; dagger ego:chaos
 KPROP:  1 = no_tele_into
 NSUBST: 1 = 1:2 / *:1
-KFEAT:  ^ = teleport trap / dispersal trap
+KFEAT:  ^ = trap_teleport / trap_dispersal
 : standard_overflow_setup(_G, { { "xom", "_" } }, true)
 MAP
 xxxx+xxxx
@@ -5162,12 +5166,13 @@ ENDMAP
 NAME:   yredelemnul_altar_generic
 TAGS:   transparent decor
 KMONS:  f = withered plant
+FTILE:  '_ = floor_necro_squares
 : standard_overflow_setup(_G, { { "yredelemnul", "_" } }, true)
 MAP
 .....
-.f.f.
-.._..
-.f.f.
+.f'f.
+.'_'.
+.f'f.
 .....
 ENDMAP
 
@@ -5237,7 +5242,7 @@ SUBST:  1 = ?
 MONS:   spectral orc
 KMONS:  _ = weeping skull
 : end
-KFEAT:  . = web trap / .
+KFEAT:  . = web / .
 : decorative_floor(_G, '1?', "broken floral vase")
 : standard_overflow_setup(_G, { { "yredelemnul", "_" } }, true)
 MAP
@@ -5287,10 +5292,6 @@ NAME:   nicolae_yredelemnul_ghost_church
 TAGS:   transparent no_trap_gen
 WEIGHT: 5
 DEPTH:  D:3-
-KPROP:  dO' = no_tele_into
-KMASK:  dO' = no_monster_gen
-NSUBST: d = * / $ / %
-KFEAT:  _ = altar_yredelemnul
 : if you.depth() < 5 then
 KMONS:  O = spectral orc warrior
 : elseif you.depth() < 8 then
@@ -5301,6 +5302,10 @@ KMONS:  O = flayed ghost
 KMONS:  O = phantasmal warrior
 : end
 KMONS:  z = patrolling zombie
+NSUBST: d = * / $ / %
+KPROP:  'O$%* = no_tele_into
+KMASK:  'O$%* = no_monster_gen
+FTILE:  ='*O$%* = floor_necro_squares
 : standard_overflow_setup(_G, { { "yredelemnul", "_" } }, true)
 MAP
 xxxxxxxxxxx
@@ -5507,7 +5512,7 @@ NAME:   nicolae_yredelemnul_open_graves
 TAGS:   transparent no_wall_fixup
 DEPTH:  D:3-, !D:$, Depths, !Depths:$, Crypt, !Crypt:$
 KMONS:  1 = zombie
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 SUBST:  - = t.
 COLOUR: t = brown
 TILE:   t = dngn_tree_dead
@@ -6430,7 +6435,7 @@ SUBST:  2 = 1.
 KPROP:  12Ll = no_tele_into
 SUBST:  L = ll^., l = cll., c : cD
 : if you.depth() ~= dgn.br_depth(you.branch()) then
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 : end
 : standard_overflow_setup(_G, { { "fedhas", "A" }, { "qazlal", "B" } }, true)
 MAP
@@ -6683,16 +6688,18 @@ kitem("1 = " .. dgn.random_item_def(weapons, egos, "plus:0"))
 }}
 KITEM:   2 = randbook owner:Sif_Muna numspells:3 slevels:4
 : end
-: standard_overflow_setup(_G, { { "trog", "A" }, { "sif_muna", "B" } }, true)
+FTILE:   1B- = floor_pebble_red
+FTILE:   2C' = floor_pebble_blue
+: standard_overflow_setup(_G, { { "trog", "B" }, { "sif_muna", "C" } }, true)
 MAP
      xx@@@x
     xx...xx
    xx...xxxxx
-  xx...xx-A-x
+  xx...xx-B-x
  xx...xcx-1-x
 xx...xAx...xx
 x'2'xcx...xx
-x'B'xx...xx
+x'C'xx...xx
 xxxxx...xx
   xx...xx
   x@@@xx
@@ -6921,7 +6928,7 @@ ENDMAP
 NAME:  lemuel_tele_altar
 TAGS:  transparent decor no_descent
 SUBST: D = ^ x
-KFEAT: ^ = teleport trap
+KFEAT: ^ = trap_teleport
 KMASK: 'B = opaque
 : standard_overflow_setup(_G, { { "generic", "B" } }, true)
 MAP

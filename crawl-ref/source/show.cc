@@ -112,11 +112,8 @@ static void _update_feat_at(const coord_def &gp)
 {
     dungeon_feature_type feat = env.grid(gp);
     unsigned colour = env.grid_colours(gp);
-    trap_type trap = TRAP_UNASSIGNED;
-    if (feat_is_trap(feat))
-        trap = get_trap_type(gp);
 
-    env.map_knowledge(gp).set_feature(feat, colour, trap);
+    env.map_knowledge(gp).set_feature(feat, colour);
 
     if (haloed(gp))
         env.map_knowledge(gp).flags |= MAP_HALOED;

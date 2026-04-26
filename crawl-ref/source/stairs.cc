@@ -19,7 +19,7 @@
 #include "delay.h"
 #include "dgn-overview.h"
 #include "directn.h"
-#include "dungeon.h" // place_specific_trap
+#include "dungeon.h"
 #include "env.h"
 #include "files.h"
 #include "god-abil.h"
@@ -56,6 +56,7 @@
  #include "tilepick.h"
 #endif
 #include "tiles-build-specific.h"
+#include "timed-effects.h"
 #include "traps.h"
 #include "travel.h"
 #include "view.h"
@@ -142,13 +143,6 @@ bool check_next_floor_warning()
         return false;
     }
     return true;
-}
-
-void maybe_destroy_shaft(const coord_def &p)
-{
-    trap_def* trap = trap_at(p);
-    if (trap && trap->type == TRAP_SHAFT)
-        trap->destroy(true);
 }
 
 static void _player_change_level_reset()
@@ -253,22 +247,12 @@ static void _climb_message(dungeon_feature_type stair, bool going_up,
     }
 }
 
-static void _clear_golubria_traps()
-{
-    for (auto c : find_golubria_on_level())
-    {
-        trap_def *trap = trap_at(c);
-        if (trap && trap->type == TRAP_GOLUBRIA)
-            trap->destroy();
-    }
-}
-
 static void _remove_unstable_monsters()
 {
     for (auto &mons : menv_real)
     {
         if (mons_class_flag(mons.type, M_UNSTABLE) && mons.is_summoned())
-            mons.reset();
+            monster_die(mons, KILL_RESET, NON_MONSTER, true);
     }
 }
 
@@ -305,7 +289,7 @@ void leaving_level_now(dungeon_feature_type stair_used)
         dungeon_events.fire_position_event(DET_PLAYER_CLIMBS, you.pos());
     dungeon_events.fire_event(DET_LEAVING_LEVEL);
 
-    _clear_golubria_traps();
+    end_terrain_changes(TERRAIN_CHANGE_GOLUBRIA);
     _remove_unstable_monsters();
 
     // Allow players to be interrupted by sensed monsters on their return to this level.
@@ -623,7 +607,7 @@ static level_id _travel_destination(const dungeon_feature_type how,
         {
             if (known_shaft)
                 mpr("The shaft disappears in a puff of logic!");
-            maybe_destroy_shaft(you.pos());
+            destroy_trap(you.pos());
             return dest;
         }
 
@@ -674,7 +658,7 @@ static level_id _travel_destination(const dungeon_feature_type how,
                 mpr("The strain on the space-time continuum destroys the "
                     "shaft!");
             }
-            maybe_destroy_shaft(you.pos());
+            destroy_trap(you.pos());
             return dest;
         }
 
@@ -691,7 +675,7 @@ static level_id _travel_destination(const dungeon_feature_type how,
 
         // Shafts are one-time-use.
         mpr("The shaft crumbles and collapses.");
-        maybe_destroy_shaft(you.pos());
+        destroy_trap(you.pos());
     }
 
     // Maybe perform the entry sequence (we check that they have enough runes
@@ -769,12 +753,8 @@ void rise_through_ceiling()
                      whither, true, true, false, false);
 
     // flavour! blow a hole through the floor
-    if (env.grid(you.pos()) == DNGN_FLOOR
-        && !trap_at(you.pos()) /*needed?*/
-        && is_valid_shaft_level())
-    {
-        place_specific_trap(you.pos(), TRAP_SHAFT);
-    }
+    if (env.grid(you.pos()) == DNGN_FLOOR && is_valid_shaft_level())
+        dungeon_terrain_changed(you.pos(), DNGN_TRAP_SHAFT);
 }
 
 /**
@@ -889,8 +869,8 @@ void floor_transition(dungeon_feature_type how,
     {
         you.depth = 0;
         mpr("You have escaped!");
-        ouch(INSTANT_DEATH, player_has_orb() ? KILLED_BY_WINNING
-                                             : KILLED_BY_LEAVING);
+        player_die(player_has_orb() ? KILLED_BY_WINNING
+                                    : KILLED_BY_LEAVING);
     }
 
     if (how == DNGN_ENTER_ZIGGURAT)
@@ -1150,7 +1130,7 @@ void take_stairs(dungeon_feature_type force_stair, bool going_up,
 
     // Taking a shaft manually (stepping on a known shaft, or using shaft ability)
     const bool known_shaft = (!force_stair
-                              && get_trap_type(you.pos()) == TRAP_SHAFT)
+                              && env.grid(you.pos()) == DNGN_TRAP_SHAFT)
                              || (force_stair == DNGN_TRAP_SHAFT
                                  && force_known_shaft);
     // Latter case is falling down a shaft.
@@ -1350,10 +1330,6 @@ void down_stairs(dungeon_feature_type force_stair, bool force_known_shaft, bool 
 static void _update_level_state()
 {
     env.level_state = 0;
-
-    vector<coord_def> golub = find_golubria_on_level();
-    if (!golub.empty())
-        env.level_state |= LSTATE_GOLUBRIA;
 
     for (monster_iterator mon_it; mon_it; ++mon_it)
     {

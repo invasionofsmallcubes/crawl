@@ -1503,7 +1503,7 @@ static void _calc_hp_artefact()
 {
     calc_hp();
     if (you.hp_max <= 0) // Borgnjor's abusers...
-        ouch(0, KILLED_BY_DRAINING);
+        player_die(KILLED_BY_DRAINING);
 }
 
 static void _flight_equip()
@@ -1744,7 +1744,7 @@ void equip_artefact_effect(item_def &item, bool *show_msgs, bool unmeld)
     }
 
     if (proprt[ARTP_RAMPAGING] && msg && !unmeld
-        && !you.has_mutation(MUT_ROLLPAGE))
+        && !you.has_mutation(MUT_STAMPEDE))
     {
         mpr("You feel ready to rampage towards enemies.");
     }
@@ -2034,6 +2034,23 @@ static void _equip_weapon_effect(item_def& item, bool showMsgs, bool unmeld)
         }
     }
 
+    if (item.sub_type == WPN_ATHAME)
+    {
+        if (you.hp <= 2)
+        {
+            mprf("Your athame gleams mockingly in your nearly-%s state.",
+                 (you.is_nonliving() || you.is_lifeless_undead()) ? "destroyed" :
+                                                                    "dead");
+        }
+        else
+        {
+            mprf("Your athame demands its blood price!%s",
+                 you.has_blood() ? "" : " (Figuratively speaking.)");
+            ouch(max(you.hp / 10, 1), KILLED_BY_SELF_AIMED, MID_PLAYER,
+                 nullptr, nullptr, true);
+        }
+    }
+
     if (special == SPWPN_ANTIMAGIC)
         calc_mp();
 
@@ -2313,7 +2330,7 @@ static void _equip_armour_effect(item_def& arm, bool unmeld)
             break;
 
         case SPARM_RAMPAGING:
-            if (!you.has_mutation(MUT_ROLLPAGE))
+            if (!you.has_mutation(MUT_STAMPEDE))
                 mpr("You feel ready to rampage towards enemies.");
             break;
 

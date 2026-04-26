@@ -766,6 +766,7 @@ KITEM:    F = demon whip mundane pre_id plus:5, \
               giant spiked club mundane pre_id plus:5
 KITEM:    G = dagger mundane pre_id plus:5, \
               rapier mundane pre_id plus:5, \
+              athame mundane pre_id plus:5, \
               quick blade mundane pre_id plus:5
 KITEM:    H = demon blade mundane pre_id plus:5, \
               double sword mundane pre_id plus:5, \

@@ -87,7 +87,7 @@ static void _end_growing_destruction()
 
 static void _end_toxic_bog()
 {
-    end_terrain_change(TERRAIN_CHANGE_BOG);
+    end_terrain_changes(you, TERRAIN_CHANGE_BOG);
 }
 
 // properties of the duration.
@@ -786,6 +786,9 @@ static const duration_def duration_data[] =
       "engorged", "engorged",
       "Your maw is digesting a delicious meal.", D_NO_FLAGS,
       {{ "You finish digesting your meal." }}},
+    { DUR_STAMPEDE, WHITE, "Stampede", "", "", "", D_NO_FLAGS, {{ "You stop stampeding."}}},
+    { DUR_SALVO, LIGHTBLUE, "Salvo", "", "", "", D_NO_FLAGS},
+    { DUR_TAILWIND, LIGHTBLUE, "Tailwind", "ready to rush forward", "tailwind", "", D_NO_FLAGS, {{"Your tailwind grows less brisk."}}},
 
     // The following are visible in wizmode only, or are handled
     // specially in the status lights and/or the % or @ screens.
@@ -846,7 +849,6 @@ static const duration_def duration_data[] =
       }}}},
     { DUR_REVELATION, 0, "", "", "revelation", "", D_NO_FLAGS, {{""}}},
     { DUR_JINXBITE_LOST_INTEREST, 0, "", "", "", "", D_EXPIRES, {{"", _maybe_expire_jinxbite}}},
-    { DUR_RAMPAGE_HEAL, 0, "", "", "rampage heal", "", D_NO_FLAGS},
     { DUR_TEMP_CLOUD_IMMUNITY, 0, "", "", "temp cloud immunity", "", D_EXPIRES},
     { DUR_ALLY_RESET_TIMER, 0, "", "", "ally reset timer", "", D_NO_FLAGS},
     { DUR_BEOGH_DIVINE_CHALLENGE, WHITE, "Challenge", "", "apostle challenge",
@@ -856,7 +858,6 @@ static const duration_def duration_data[] =
     { DUR_CONSTRICTION_IMMUNITY, 0, "", "", "constrict immune", "", D_NO_FLAGS, {{""}}},
     { DUR_GRAVE_CLAW_RECHARGE, 0, "", "", "grave claw recharging", "", D_NO_FLAGS},
     { DUR_TIME_WARPED_BLOOD_COOLDOWN, 0, "", "", "time-warped blood cooldown", "", D_NO_FLAGS},
-    { DUR_SPIKE_LAUNCHER_ACTIVE, 0, "", "", "spike launcher", "", D_NO_FLAGS, {{"", end_spike_launcher}}},
     { DUR_PARAGON_ACTIVE, 0, "", "", "paragon active", "", D_NO_FLAGS},
     { DUR_FORTRESS_BLAST_TIMER, 0, "", "", "fortress blast charging", "", D_DISPELLABLE},
     { DUR_PHALANX_BARRIER, 0, "", "phalanx barrier", "phalanx barrier", "", D_NO_FLAGS},
@@ -871,6 +872,7 @@ static const duration_def duration_data[] =
        {{"Your slimification abates."}}},
     { DUR_OOZE_REGEN, LIGHTBLUE, "OozeRegen", "ooze regen", "ooze regen", "coated in regenerative ooze", D_NO_FLAGS,
        {{"The regenerative ooze finishes dripping off of you."}}},
+    { DUR_INDOMITABLE, LIGHTBLUE, "Indom", "", "", "", D_NO_FLAGS},
 
 #if TAG_MAJOR_VERSION == 34
     // And removed ones
@@ -928,5 +930,6 @@ static const duration_def duration_data[] =
     { DUR_CLUMSY, 0, "", "", "old clumsy", "", D_NO_FLAGS },
     { DUR_SLEEP_IMMUNITY, 0, "", "", "old sleep immunity", "", D_NO_FLAGS, {{""}}},
     { DUR_VILE_CLUTCH_OLD, 0, "", "", "old vile clutch", "", D_NO_FLAGS, {{""}}},
+    { DUR_SPIKE_LAUNCHER_ACTIVE, 0, "", "", "old spike launcher", "", D_NO_FLAGS, {{""}}},
 #endif
 };

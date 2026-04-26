@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "shopping.h"
-#include "trap-type.h"
 
 class input_history;
 class reader;
@@ -23,8 +22,6 @@ public:
     Stash(coord_def pos_ = coord_def());
     Stash(const Stash &) = default;
     Stash& operator=(const Stash &) = default;
-
-    static bool is_boring_feature(dungeon_feature_type feat);
 
     static string stash_item_name(const item_def &item);
     void update();
@@ -69,7 +66,6 @@ private:
     coord_def pos;
     dungeon_feature_type feat;
     string feat_desc; // Only for interesting features.
-    trap_type trap;
 
     vector<item_def> items;
 
@@ -143,9 +139,6 @@ struct stash_search_result
     // Type of feature, if this result is for a feature.
     dungeon_feature_type feat;
 
-    // Type of trap, if this result is for a trap.
-    trap_type trap;
-
     // Whether the found items are in the player's inventory.
     bool in_inventory;
 
@@ -155,7 +148,7 @@ struct stash_search_result
 
     stash_search_result() : pos(), player_distance(0), match_type(), match(),
                             primary_sort(), item(), shop(nullptr), feat(),
-                            trap(TRAP_UNASSIGNED), in_inventory(false),
+                            in_inventory(false),
                             duplicates(0), duplicate_piles(0)
     {
     }

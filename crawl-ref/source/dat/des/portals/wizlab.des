@@ -1147,24 +1147,23 @@ KMONS:      | = ancient lich / royal mummy / executioner / tzitzimitl
 #           Hints.
 KITEM:      ' = wand of digging charges:1 pre_id
 KITEM:      " = scroll of revelation q:1 pre_id
-#           Loot.
-#           0 = scrolls. 1 = armours. 2 = mixed.
-:           local lrnd = crawl.random2(3)
-:           if lrnd == 0 then
-KITEM:      % = any scroll / any scroll q:2 w:3 / any scroll q:3 w:1
+#           Loot: Scrolls or armour.
+:           if crawl.coinflip() then
+KITEM:      % = any scroll / any scroll q:2 w:3, $ / parchment disc:earth q:2
 :           kitem("* = " .. dgn.good_scrolls)
-KITEM:      | = scroll of acquirement q:1 pre_id / \
-                scroll of enchant weapon q:3 pre_id / \
-                scroll of blinking q:2 pre_id, scroll of fog q:2 pre_id
-:           elseif lrnd == 1 then
-KITEM:      % = any armour
-KITEM:      * = any good_item armour
-KITEM:      | = granite talisman randart artprops:Int:6&Stlth:1 / \
-                golden dragon scales
+KITEM:      | = $, scroll of acquirement q:1 pre_id / \
+                   scroll of enchant weapon q:3 pre_id / \
+                   scroll of blinking q:2 pre_id, scroll of fog q:2 pre_id
 :           else
-KITEM:      % = any / star_item w:2
-KITEM:      * = star_item / superb_item w:2
-KITEM:      | = superb_item
+KITEM:      % = any armour good_item
+KITEM:      * = $, hat ego:intelligence good_item w:6 / \
+                   cloak ego:stealth good_item w:4 / \
+                   pair of boots ego:earth good_item / \
+                   plate armour ego:death good_item w:8 / \
+                   kite shield ego:positive_energy w:4 / \
+                   crystal plate armour good_item w:4
+KITEM:      | = $, granite talisman randart artprops:Int:6&Stlth:1 / \
+                   golden dragon scales
 :           end
 #           Boxification:
 :           box_glyph('%', '!')
@@ -1537,6 +1536,7 @@ TILE:       W = dngn_zonguldrok_shrine
 TILE:       c = wall_stone_shrine
 TILE:       t = dngn_tree_dead
 FTILE:      " = floor_nerves_darkgray
+FTILE:      `WRS = floor_necro_squares
 LFLOORCOL:  darkgrey
 LROCKCOL:   darkgrey
 LFLOORTILE: floor_tomb
@@ -1569,12 +1569,12 @@ x?!G.G.G.cdddcdddc.G.G.G!?x
 x?!.G.G.ccdd'+'ddcc.G.G.!?x
 x?!G.Gcccddcc+ccddcccG.G!?x
 x?!.G.c$dddcLLLcddd$c.G.!?x
-x?!G.Gc$$ccc'''ccc$$cG.G!?x
-x?!.G.c$$c'''''''c$$c.G.!?x
-x?!G.Gcccc'RW'WS'ccccG.G!?x
-x?!.G.c''+'RR'SS'+''c.G.!?x
-x?!G.Gc'3ccc'''ccc2'cG.G!?x
-x?!.G.c''3'c'''c'1''c.G.!?x
+x?!G.Gc$$ccc```ccc$$cG.G!?x
+x?!.G.c$$c```````c$$c.G.!?x
+x?!G.Gcccc`RW`WS`ccccG.G!?x
+x?!.G.c''+`RR`SS`+''c.G.!?x
+x?!G.Gc'3ccc```ccc2'cG.G!?x
+x?!.G.c''3'c```c'1''c.G.!?x
 x?!G.GcCc''ccccc1'cCcG.G!?x
 x?!.G.G.cc'''+'''cc.G.G.!?x
 x?!G.G.G.c'''c'''c.G.G.G!?x
@@ -1785,7 +1785,7 @@ KITEM:   | = cloak good_item w:75 / randart cloak w:95 / \
 KITEM:   136 = mundane cloak no_pickup
 KFEAT:   m = iron_grate
 KFEAT:   ~ = deep_water / web w:4
-KFEAT:   ^ = permanent teleport trap / web w:20
+KFEAT:   ^ = trap_teleport_permanent / web w:20
 KFEAT:   _ = altar_lugonu
 KFEAT:   opqsrtuvw@}) = floor
 KPROP:   a"_~ = no_tele_into
@@ -1925,9 +1925,9 @@ MONS:       cacodemon
 MONS:       quicksilver dragon / war gargoyle / crystal guardian / \
             wretched star
 MONS:       orange crystal statue name:lunar_statue n_rpl n_des \
-                spells:brain_bite.24.magical;antimagic_gaze.24.magical;\
-                       lehudib's_crystal_spear.24.magical;\
-                       shadow_creatures.48.magical \
+                spells:antimagic_gaze.25.magical;\
+                       lehudib's_crystal_spear.25.magical;\
+                       shadow_creatures.50.magical \
                 col:lightmagenta tile:mons_zot_statue
 MONS:       moon troll ; moon troll leather armour
 KMONS:      8 = cognitogaunt
@@ -2152,13 +2152,13 @@ ENDMAP
 NAME:       wizlab_maxwell
 TAGS:       no_rotate no_pool_fixup
 MONS:       peacekeeper / gargoyle / patrolling earth elemental w:5
-MONS:       molten gargoyle / thermic dynamo / fire elemental w:5
+MONS:       molten gargoyle / thermic dynamo w:8 / fire elemental w:5
 MONS:       salamander tyrant / fire giant ; great mace ego:flaming
 MONS:       war gargoyle / crystal guardian
 MONS:       ettin / ironbound preserver ; great mace /\
             fire giant ; great mace ego:flaming /\
             frost giant ; great mace ego:freezing /\
-            angel ; great mace ego:holy_wrath w:5
+            angel w:5 ; great mace ego:holy_wrath w:5
 MONS:       ironbound thunderhulk ; great mace ego:electrocution
 MONS:       patrolling electric golem
 KMONS:      P = lightning spire
@@ -2178,8 +2178,9 @@ ITEM:       potion of attraction pre_id / any scroll w:20 /\
 SHUFFLE:    DE/JK, pqrs, ;~
 SUBST:      D : b+, E:., J:., K: b+, F:.+, p:v, q:b., r: v.., s:b...
 SUBST:      ;:v+., -:v+.., ~:., 1 = 1..., 2 = 2..
-NSUBST:     3 = 1:3 / *=3.., 4 = 1:4 / *=4.., 5 = 1:5 / *=5.., 6 = 2:6 / *=6..
-NSUBST:     7 = 1:7 / *:P,  A = 1:< /*:A, H = 2:4 / 4:1 / *=11bG
+NSUBST:     3 = 1:3 / * = 3.., 4 = 1:4 / 1:. / * = 4..
+NSUBST:     5 = 1:5 / 1:. / * = 5.., 6 = 2:6 / * = 6..
+NSUBST:     7 = 1:7 / *:P, A = 1:< / *:A, H = 2:4 / 4:1 / * = 11bG
 NSUBST:     e = 3:e / *=dff
 TILE:       v = metal_wall_workshop
 TILE:       b = dngn_crystal_cyan
@@ -2291,7 +2292,7 @@ kmons("5 = patrolling Head Instructor dbname:Head_Instructor name:"
 ITEM:   any book w:15 / randbook disc:hexes owner:Yara w:4 / spellbinder w:1
 ITEM:   scroll of enchant armour pre_id / scroll of enchant weapon pre_id
 KFEAT:  C = cache_of_fruit / cache_of_meat / cache_of_baked_goods
-KFEAT:  ^ = archmage's trap
+KFEAT:  ^ = trap_archmage
 NSUBST: * = 4:d / 4:e / *=*., 5 = 1:5 / *:1, D = 1:2 / * = 1G
 NSUBST: E = 1:2 / *:1, 3 = 1:4 / * = 3`, A = 1:< / *:A, C = 3 = C.. / *:.
 SUBST:  P : Pt", F = 211111, 1 = 1...., x = xxxx., - = x
@@ -2572,7 +2573,7 @@ KITEM:  Q = star_item
 KITEM:  JKL = potion of moonshine pre_id
 KFEAT:  C = cache_of_meat / cache_of_fruit / cache_of_baked_goods
 KFEAT:  E = shallow_water
-KFEAT:  ^ = harlequin's trap
+KFEAT:  ^ = trap_harlequin
 KFEAT:  N = granite_statue
 NSUBST: A = 1:< / *:A, D = 1:D/*:-, W = 1:E / * = E:1 W:16, F = 1:F / * = F----
 NSUBST: H = 1:H / *:", e = 4:e / 1:g / *=eedg, 5 = 3:5 / *=5..

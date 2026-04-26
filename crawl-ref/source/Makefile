@@ -769,10 +769,14 @@ endif
 
 ifdef SOUND
 ifndef WIN32
+ifndef NO_SDL_LIBS
 LIBS += -lSDL2_mixer
 endif
 endif
+endif
+ifndef NO_SDL_LIBS
 LIBS += -lSDL2_image $(SDL2_LDFLAGS) $(FREETYPE_LDFLAGS)
+endif
 
 endif # pkg-config
 

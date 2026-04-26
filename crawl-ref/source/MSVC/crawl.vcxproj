@@ -394,6 +394,7 @@ python.exe util/gen-all.py</Command>
     <ClCompile Include="..\l-wiz.cc" />
     <ClCompile Include="..\lang-fake.cc" />
     <ClCompile Include="..\losglobal.cc" />
+    <ClCompile Include="..\l-autofight.cc" />
     <ClCompile Include="..\l-colour.cc" />
     <ClCompile Include="..\l-crawl.cc" />
     <ClCompile Include="..\l-debug.cc" />
@@ -1003,6 +1004,7 @@ python.exe util/gen-all.py</Command>
     <ClInclude Include="..\text-tag-type.h" />
     <ClInclude Include="..\threads.h" />
     <ClInclude Include="..\throw.h" />
+    <ClInclude Include="..\tile-env.h" />
     <ClInclude Include="..\tile-flags.h" />
     <ClInclude Include="..\tile-inventory-flags.h" />
     <ClInclude Include="..\tile-player-flag-cut.h" />
@@ -1044,8 +1046,6 @@ python.exe util/gen-all.py</Command>
     <ClInclude Include="..\torment-source-type.h" />
     <ClInclude Include="..\transform.h" />
     <ClInclude Include="..\transformation.h" />
-    <ClInclude Include="..\trap-def.h" />
-    <ClInclude Include="..\trap-type.h" />
     <ClInclude Include="..\traps.h" />
     <ClInclude Include="..\travel-defs.h" />
     <ClInclude Include="..\travel.h" />

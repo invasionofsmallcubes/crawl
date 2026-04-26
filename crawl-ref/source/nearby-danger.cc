@@ -495,7 +495,7 @@ void revive()
         mpr("You are too frail to live.");
         // possible only with an extreme abuse of Borgnjor's
         // might be impossible now that felids don't level down on death?
-        ouch(INSTANT_DEATH, KILLED_BY_DRAINING);
+        player_die(KILLED_BY_DRAINING);
     }
 
     mpr("You rejoin the land of the living...");

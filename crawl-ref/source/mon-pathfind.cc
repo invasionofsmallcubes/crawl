@@ -448,13 +448,9 @@ bool monster_pathfind::traversable(const coord_def& p)
 
     if (monster* mon_at = monster_at(p))
     {
-        // XXX: Ugly hack to make thorn hunters use their briars for defensive
-        //      cover instead of just pathing around them.
-        if (mons && mons->type == MONS_THORN_HUNTER
-            && mon_at->type == MONS_BRIAR_PATCH)
-        {
+        // Thorn hunters can walk freely through their own briars.
+        if (mons && mons->type == MONS_THORN_HUNTER && mon_at->was_created_by(*mons))
             return true;
-        }
 
         // Try to path around immobile monsters.
         if (mon_at->is_stationary())
@@ -507,10 +503,9 @@ int monster_pathfind::mons_travel_cost(coord_def npos)
         return 2;
 
     // Try to avoid traps.
-    const trap_def* ptrap = trap_at(npos);
-    if (ptrap)
+    if (feat_is_trap(env.grid(npos)))
     {
-        if (ptrap->is_bad_for_player())
+        if (trap_is_bad_for_player(env.grid(npos)))
         {
             // Your allies take extra precautions to avoid traps that are bad
             // for you (elsewhere further checks are made to mark Zot traps as

@@ -651,7 +651,7 @@ ENDMAP
 NAME:    nicolae_shop_mannequins
 TAGS:    extra shop transparent
 WEIGHT:  5
-KMONS:   p = dancing weapon ; rapier | triple sword | executioner's axe | \
+KMONS:   p = dancing weapon ; athame | triple sword | executioner's axe | \
                great mace | bardiche | lajatang | triple crossbow | \
                demon blade | demon trident | demon whip | quick blade | \
                giant club | giant spiked club
@@ -2057,7 +2057,7 @@ WEIGHT: 2
 -- Rather than writing the whole list out myself, I'll make lua do it.
 local metal_goods = {"ring mail", "scale mail", "chain mail", "plate armour",
    "buckler", "kite shield", "tower shield", "helmet", "rapier", "war axe",
-   "short sword", "scimitar", "great sword", "broad axe", "battleaxe", "glaive",
+   "athame", "scimitar", "great sword", "broad axe", "battleaxe", "glaive",
    "morningstar", "dire flail", "great mace", "trident", "arbalest", "bardiche",
    "executioner's axe", "eveningstar", "lajatang", "hand cannon",
    "triple crossbow", "partisan"}

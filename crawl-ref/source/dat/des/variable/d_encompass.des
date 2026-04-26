@@ -176,8 +176,8 @@ kmons("s = " .. table.concat(kmonsters, " / "))
 KITEM:   ? = any ring randart w:390 / ring_of_the_octopus_king
 KITEM:   ! = ring of slaying / ring of wizardry / any good_item ring no_uniq w:75
 KITEM:   | = | / any good_item
-KFEAT:   ^ = permanent teleport trap
-KFEAT:   ~ = teleport trap
+KFEAT:   ^ = trap_teleport_permanent
+KFEAT:   ~ = trap_teleport
 KFEAT:   aD = stone_arch
 KFEAT:   ; = cache_of_fruit
 KFEAT:   A = enter_hell
@@ -391,7 +391,7 @@ MONS:     iron dragon w:5 / iron dragon perm_ench:shapeshifter w:5 / \
           dancing weapon ; glaive ego:flaming | glaive ego:freezing | \
                            battleaxe ego:flaming | battleaxe ego:freezing
 KMONS:    5 = deep elf blademaster ; mundane crystal plate armour . \
-                                     rapier ego:flaming . rapier ego:freezing
+                                     athame ego:flaming . athame ego:freezing
 KMONS:    6 = deep elf master archer ; ice dragon scales . longbow ego:flaming / \
               deep elf master archer ; fire dragon scales . longbow ego:freezing
 KMONS:    7 = Vv w:2 / ancient lich / alderking w:6, \

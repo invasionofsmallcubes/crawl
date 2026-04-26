@@ -333,6 +333,10 @@ void swap_inv_slots(item_def& to_adjust, int to_slot, bool verbose)
         you.last_unequip = to_slot;
     else if (you.last_unequip == to_slot)
         you.last_unequip = from_slot;
+    if (you.last_fired == from_slot)
+        you.last_fired = to_slot;
+    if (you.last_fired == to_slot)
+        you.last_fired = from_slot;
 
     if (you.cur_talisman == from_slot)
         you.cur_talisman = to_slot;

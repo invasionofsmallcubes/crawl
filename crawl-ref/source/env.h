@@ -11,7 +11,6 @@
 #include "mapmark.h"
 #include "monster.h"
 #include "shopping.h"
-#include "trap-def.h"
 
 using std::vector;
 
@@ -75,7 +74,6 @@ struct crawl_environment
     map<coord_def, cloud_struct> cloud;
 
     map<coord_def, shop_struct> shop; // shop list
-    map<coord_def, trap_def> trap; // trap list
 
     FixedVector< monster_type, MAX_MONS_ALLOC > mons_alloc;
     map_markers                              markers;

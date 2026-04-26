@@ -1456,7 +1456,6 @@ void shake_off_monsters(const actor* target)
 static void _mons_indicate_level_exit(const monster* mon)
 {
     const dungeon_feature_type feat = env.grid(mon->pos());
-    const bool is_shaft = (get_trap_type(mon->pos()) == TRAP_SHAFT);
 
     if (feat_is_gate(feat))
         simple_monster_message(*mon, " passes through the gate.");
@@ -1471,7 +1470,7 @@ static void _mons_indicate_level_exit(const monster* mon)
                 feat_is_escape_hatch(feat) ? "escape hatch"
                                            : "stairs").c_str());
     }
-    else if (is_shaft)
+    else if (feat == DNGN_TRAP_SHAFT)
     {
         simple_monster_message(*mon,
             make_stringf(" %s the shaft.",
@@ -1480,7 +1479,7 @@ static void _mons_indicate_level_exit(const monster* mon)
 
         // Shafts are one-time-use.
         mpr("The shaft crumbles and collapses.");
-        maybe_destroy_shaft(mon->pos());
+        destroy_trap(mon->pos());
     }
 }
 

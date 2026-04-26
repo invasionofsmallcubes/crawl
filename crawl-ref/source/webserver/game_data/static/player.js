@@ -393,12 +393,7 @@ function ($, comm, client, enums, map_knowledge, messages, options, util) {
                                     + player.title);
         $("#stats_wizmode").text(player.wizard ? "*WIZARD*" : player.explore ? "*EXPLORE*" : "");
 
-        // Setup species
-        // TODO: Move to a proper initialisation task
-        if ($("#stats").attr("data-species") != player.species)
-            $("#stats").attr("data-species", player.species);
-
-        var species_god = player.species;
+        var species_god = player.species_display_name;
         if (player.god != "")
             species_god += " of " + player.god;
         if (player.god == "Xom")
@@ -612,6 +607,7 @@ function ($, comm, client, enums, map_knowledge, messages, options, util) {
         .on("game_init.player", function () {
             $.extend(player, {
                 name: "", god: "", title: "", species: "",
+                species_display_name: "",
                 hp: 0, hp_max: 0, real_hp_max: 0, poison_survival: 0,
                 mp: 0, mp_max: 0, dd_real_mp_max: 0,
                 ac: 0, ev: 0, sh: 0,

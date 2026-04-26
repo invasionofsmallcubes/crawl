@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "enum.h"
-#include "trap-type.h"
 
 using std::vector;
 
@@ -23,19 +22,16 @@ using std::vector;
 
 struct bolt;
 class monster;
-struct trap_def;
+
+bool trap_is_bad_for_player(dungeon_feature_type trap);
+bool trap_is_safe(dungeon_feature_type trap, const actor* act = 0);
+void trigger_trap(actor& triggerer);
 
 bool chaos_lace_criteria(monster* mon);
 
 const char* held_status(actor *act = nullptr);
-vector<coord_def> find_golubria_on_level();
-
-dungeon_feature_type trap_feature(trap_type type) IMMUTABLE;
-trap_type trap_type_from_feature(dungeon_feature_type type);
 
 void destroy_trap(const coord_def& pos);
-trap_def* trap_at(const coord_def& where);
-trap_type get_trap_type(const coord_def& where);
 
 bool is_valid_shaft_level(bool respect_brflags = true);
 void set_shafted();
@@ -44,11 +40,6 @@ void do_trap_effects();
 level_id generic_shaft_dest(level_id place);
 
 int       trap_rate_for_place();
-trap_type random_trap_for_place(bool dispersal_ok = true);
+dungeon_feature_type random_trap_for_place(bool dispersal_ok = true);
 
 void place_webs(int num);
-
-bool is_regular_trap(trap_type trap);
-#if TAG_MAJOR_VERSION == 34
-bool is_removed_trap(trap_type trap);
-#endif

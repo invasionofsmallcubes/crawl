@@ -656,7 +656,7 @@ NAME:   wheals_swamp_sinkhole
 TAGS:   extra no_monster_gen decor
 DEPTH:  Swamp:1-2
 WEIGHT: 5
-KFEAT: ^ = shaft trap
+KFEAT: ^ = shaft
 SUBST: u = Ww
 KPROP: wW^ = no_tele_into
 MAP
@@ -1639,7 +1639,7 @@ TILE:    t = dngn_demonic_tree_1 w:3 / dngn_demonic_tree_16 w:3 / \
 KITEM:   *| = % no_pickup w:2 / * no_pickup / | no_pickup
 KFEAT:   aA = stone_arch
 KFEAT:   B = shallow_water
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 NSUBST:  < = 1:{ / 1:}
 SHUFFLE: {} / {[ / {[ / }] / }]
 MARKER:  A = lua:fog_machine { cloud_type = "translocational energy", \
@@ -2260,7 +2260,7 @@ NAME:    nicolae_swamp_oklob_treasure_island
 TAGS:    no_pool_fixup
 DEPTH:   Swamp, !Swamp:$
 KMONS:   o = oklob plant
-KFEAT:   ^ = permanent teleport trap
+KFEAT:   ^ = trap_teleport_permanent
 SHUFFLE: Aa/Bb/Cc/Dd/Ee/Ff/Gg/Hh/Ii, %*$
 NSUBST:  ' = 1:^ / 3:o / *:'
 SUBST:   abcde = w, fghi = t, ABCDE = .wW, FGHI = .t, ' = ':100 $$$%%
@@ -2345,7 +2345,6 @@ MAP
 ENDMAP
 
 #### An ancient temple to kiku revived by a powerful spellcaster.
-#### XXX: derived undead giants in swamp?
 NAME:  beargit_kiku_chapel
 TAGS:  no_monster_gen
 DEPTH: Swamp:2-
@@ -2354,7 +2353,7 @@ MONS:  patrolling spriggan berserker simulacrum w:20 / \
        patrolling spriggan defender simulacrum / \
        patrolling spriggan air mage simulacrum / \
        juggernaut zombie w:5 / caustic shrike zombie w:1
-MONS:  patrolling necromancer / \
+MONS:  patrolling necromancer ; robe . athame ego:pain / \
        patrolling fenstrider_witch ; quick blade ego:pain
 MONS:  ghost crab / death drake w:1
 KMONS: 5 = bunyip zombie / spectral bunyip / swamp dragon draugr / \
@@ -2842,17 +2841,17 @@ ORIENT: northwest
 MONS:   spriggan, spriggan rider, spriggan druid, spriggan berserker
 MONS:   spriggan air mage
 ITEM:   gold q:1 / gold q:2 / gold q:3 / gold q:4
-ITEM:   buckler w:30 / robe w:30 / swamp dragon scales w:20 \
-        / steam dragon scales / acid dragon scales / troll leather armour
-ITEM:   short sword / rapier / quick blade / long sword / scimitar \
-        / war axe / morningstar / eveningstar / partisan / quarterstaff \
-        / lajatang
+ITEM:   buckler w:30 / robe w:30 / swamp dragon scales w:20 / \
+        steam dragon scales / acid dragon scales / troll leather armour
+ITEM:   rapier / athame / quick blade / long sword / scimitar / \
+        war axe / morningstar / eveningstar / partisan / quarterstaff / \
+        lajatang
 ITEM:   any magical staff, any jewellery, any book, any wand
 NSUBST: L = e / f / eeffhj$ / ghhijj$
 SUBST:  } = }]), O = c., D = tt., P = 112., Q = 1112, . = ...W
 # The shaft is just for flavor, to help hint at the notion of "go downstairs".
 # You can think of it as a "flavor shaft". Or a "flavor hole", if you prefer.
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 MAP
 tttttttttttttttttttt
 tttD...3...Dtttttttt

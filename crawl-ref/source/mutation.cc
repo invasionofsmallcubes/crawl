@@ -238,7 +238,6 @@ static const mutation_conflict mut_conflicts[] =
     { MUT_HP_CASTING,          MUT_HIGH_MAGIC,             false},
     { MUT_HP_CASTING,          MUT_LOW_MAGIC,              false},
     { MUT_HP_CASTING,          MUT_EFFICIENT_MAGIC,        false},
-    { MUT_ROLLPAGE,            MUT_INHIBITED_REGENERATION, false},
 
 #if TAG_MAJOR_VERSION == 34
     { MUT_NO_REGENERATION,     MUT_INHIBITED_REGENERATION, false},
@@ -2063,6 +2062,9 @@ bool mutate(mutation_type which_mutation, const string &reason, bool failMsg,
                 set_evolution_mut_xp(mutat == MUT_DEVOLUTION);
             }
             break;
+
+        case MUT_STAMPEDE:
+            update_four_winds(true);
 
         default:
             break;

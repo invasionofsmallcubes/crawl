@@ -992,7 +992,7 @@ ENDMAP
 NAME:   minmay_holes
 TAGS:   transparent extra decor lairdec
 DEPTH:  D:5-, !D:$, Depths, !Depths:$, Lair, !Lair:$
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 SUBST:  . = . ^:1, ' = . ^:2, " = . ^:4
 WEIGHT: 15
 MAP
@@ -2715,7 +2715,7 @@ ENDMAP
 
 NAME: ebering_dispersal_statue_hall
 TAGS: decor extra
-KFEAT: ^ = dispersal trap
+KFEAT: ^ = trap_dispersal
 MAP
 xxxxx
 .^G^.

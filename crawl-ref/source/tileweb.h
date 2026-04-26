@@ -46,6 +46,7 @@ struct player_info
     bool wizard;
     bool explore;
     string species;
+    string species_display_name;
     string god;
     bool under_penance;
     int piety_rank;
@@ -220,7 +221,7 @@ public:
 
     void send_mcache(mcache_entry *entry, bool submerged,
                      bool send = true);
-    void write_tileidx(tileidx_t t);
+    void write_tile_with_flags(tile_with_flags_t t);
 
     void zoom_dungeon(bool in);
 

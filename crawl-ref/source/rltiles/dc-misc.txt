@@ -267,6 +267,15 @@ pie5
 pie6
 pie7
 
+corruption0 BOLT_CORRUPTION
+corruption1
+corruption2
+corruption3
+corruption4
+corruption5
+corruption6
+corruption7
+
 chaos_buff0 BOLT_CHAOS_BUFF
 chaos_buff1
 
@@ -331,6 +340,11 @@ blood_arrow7
 ostracise BOLT_OSTRACISE
 
 umbral_torchlight BOLT_UMBRAL_TORCHLIGHT
+
+wind_hush0 BOLT_WIND_HUSH
+wind_hush1
+wind_hush2
+wind_hush3
 
 ###### Priority indicators (for Fedhas' growth)
 indicator_1 INDICATOR

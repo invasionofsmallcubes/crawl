@@ -87,7 +87,7 @@ static string _level_description_string_hud()
 
 static bool _low_vertical_space()
 {
-    return crawl_view.hudsz.y < 30;
+    return crawl_view.hudsz.y < 32;
 }
 
 /*
@@ -121,7 +121,9 @@ static bool _low_vertical_space()
 20 W: foobar
 22 Abil: Bes
 23
-24 XXXXXXXXX      status lights
+24 Doom 16%
+25 Cont 110%
+26 XXXXXXXXX      status lights
 .
 y  HPP MPP
  */
@@ -169,6 +171,8 @@ enum touchui_states
     TOUCH_V_WP    = 0x020A, // dummy
     TOUCH_T_QV    = 0x010B,
     TOUCH_V_QV    = 0x020B, // dummy
+    TOUCH_V_DOOM  = 0x2005,
+    TOUCH_V_CONTA = 0x1E06,
     TOUCH_V_LIGHT = 0x010C,
 };
 touchui_states TOUCH_UI_STATE = TOUCH_S_INIT;
@@ -275,8 +279,14 @@ static void _cgotoxy_touchui(int x, int y, GotoRegion region = GOTO_CRT)
         case TOUCH_V_QV:
             x = 4; y = (super_small) ? 18 : 21;
             break;
-        case TOUCH_V_LIGHT:
+        case TOUCH_V_DOOM:
             x = 1; y = (super_small) ? 19 : 23;
+            break;
+        case TOUCH_V_CONTA:
+            x = 1; y = (super_small) ? 20 : 24;
+            break;
+        case TOUCH_V_LIGHT:
+            x = 1; y = (super_small) ? 21 : 25;
             break;
         case TOUCH_T_HP:
             x = 2; y = crawl_view.hudsz.y;
@@ -933,9 +943,9 @@ static void _print_stats_mp(int x, int y)
     if (_is_using_small_layout())
     {
         if (_low_vertical_space())
-            MP_Bar.vdraw(6, 19, you.magic_points, you.max_magic_points);
+            MP_Bar.vdraw(6, 21, you.magic_points, you.max_magic_points);
         else
-            MP_Bar.vdraw(6, 24, you.magic_points, you.max_magic_points);
+            MP_Bar.vdraw(6, 26, you.magic_points, you.max_magic_points);
     }
     else
 #endif
@@ -988,9 +998,9 @@ static void _print_stats_hp(int x, int y)
     if (_is_using_small_layout())
     {
         if (_low_vertical_space())
-            HP_Bar.vdraw(2, 19, you.hp, you.hp_max);
+            HP_Bar.vdraw(2, 21, you.hp, you.hp_max);
         else
-            HP_Bar.vdraw(2, 24, you.hp, you.hp_max);
+            HP_Bar.vdraw(2, 26, you.hp, you.hp_max);
     }
     else
 #endif
@@ -1040,7 +1050,10 @@ static void _print_stats_doom(int x, int y)
 
     CGOTOXY(x, y, GOTO_STAT);
     textcolour(HUD_CAPTION_COLOUR);
-    CPRINTF("Doom: ");
+    if (!_is_using_small_layout())
+        CPRINTF("Doom: ");
+    else
+        CPRINTF("Doom ");
 
     if (you.attribute[ATTR_DOOM] >= 75)
         textcolour(LIGHTMAGENTA);
@@ -1070,7 +1083,10 @@ static void _print_stats_contam(int x, int y)
 
     CGOTOXY(x, y, GOTO_STAT);
     textcolour(HUD_CAPTION_COLOUR);
-    CPRINTF("Contam: ");
+    if (!_is_using_small_layout())
+        CPRINTF("Contam: ");
+    else
+        CPRINTF("Cont ");
 
     const int contam = max(you.magic_contamination > 0 ? 1 : 0,
                            you.magic_contamination / 10);
@@ -2599,9 +2615,12 @@ static vector<formatted_string> _get_overview_resistances(
 
     out += _stealth_bar(cwidth, 20) + "\n";
 
-    const int regen = player_regen(); // round up
+    const int regen = player_regen() + (player_indomitable_regen_rate() * 10); // round up
     out += chop_string("HPRegen", cwidth);
-    out += make_stringf("%d.%02d/turn\n", regen/100, regen%100);
+    out += make_stringf("%s%d.%02d%s/turn\n",
+                            you.duration[DUR_INDOMITABLE] ? "<lightblue>" : "",
+                            regen/100, regen%100,
+                            you.duration[DUR_INDOMITABLE] ? "</lightblue>" : "");
 
     if (!you.has_mutation(MUT_HP_CASTING))
     {
@@ -2709,7 +2728,7 @@ static string _rampage_passive_string()
     const int rampage = you.rampaging();
     if (rampage)
     {
-        desc += you.has_mutation(MUT_ROLLPAGE) ? "roll" : "rampage";
+        desc += you.has_mutation(MUT_STAMPEDE) ? "stampede" : "rampage";
 
         const bool infinite = you.unrand_equipped(UNRAND_SEVEN_LEAGUE_BOOTS);
         const char *inf = Options.char_set == CSET_ASCII ? "+inf"

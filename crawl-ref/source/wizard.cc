@@ -147,10 +147,10 @@ static void _do_wizard_command(int wiz_command)
     case CONTROL('S'): wizard_abyss_speed(); break;
 
     case 't': wizard_tweak_object(); break;
-    case 'T': debug_make_trap(); break;
     case CONTROL('T'): debug_terp_dlua(); break;
 
     case 'u': wizard_level_travel(false); break;
+    case 'U': wizard_unobtain_unrands(); break;
     // case 'U': break;
     case CONTROL('U'): debug_terp_dlua(clua); break;
 
@@ -262,7 +262,7 @@ static void _do_wizard_command(int wiz_command)
 
 static void _log_wizmode_entrance()
 {
-    scorefile_entry se(INSTANT_DEATH, MID_NOBODY, KILLED_BY_WIZMODE, nullptr);
+    scorefile_entry se(0, MID_NOBODY, KILLED_BY_WIZMODE, nullptr);
     logfile_new_entry(se);
 }
 
@@ -403,7 +403,7 @@ void enter_explore_mode()
         take_note(Note(NOTE_MESSAGE, 0, 0, "Entered explore mode."));
 
 #ifndef SCORE_WIZARD_CHARACTERS
-        scorefile_entry se(INSTANT_DEATH, MID_NOBODY, KILLED_BY_EXPLORING, nullptr);
+        scorefile_entry se(0, MID_NOBODY, KILLED_BY_EXPLORING, nullptr);
         logfile_new_entry(se);
 #endif
 
@@ -448,7 +448,6 @@ int list_wizard_commands(bool do_redraw_screen)
                        "<w>N</w>      get current tension value\n"
                        "\n"
                        "<yellow>Dungeon features</yellow>\n"
-                       "<w>T</w>      make a trap\n"
                        "<w>,</w>/<w>.</w>    create up/down staircase\n"
                        "<w>(</w>      turn cell into feature\n"
                        "<w>\\</w>      make a shop\n"
@@ -518,6 +517,7 @@ int list_wizard_commands(bool do_redraw_screen)
                        "<w>+</w>      make randart from item\n"
                        "<w>'</w>      list items\n"
                        "<w>J</w>      Jiyva off-level sacrifice\n"
+                       "<w>U</w>      mark all unrands as never generated\n"
                        "<w>Z</w>      Unobtain runes and Orb of Zot\n"
                        "\n"
                        "<yellow>Debugging commands</yellow>\n"

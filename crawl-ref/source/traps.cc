@@ -6,7 +6,6 @@
 #include "AppHdr.h"
 
 #include "traps.h"
-#include "trap-def.h"
 
 #include <algorithm>
 #include <cmath>
@@ -22,6 +21,7 @@
 #include "delay.h"
 #include "describe.h"
 #include "dungeon.h"
+#include "dungeon-feature-type.h"
 #include "english.h"
 #include "god-passive.h" // passive_t::avoid_traps
 #include "hints.h"
@@ -64,118 +64,47 @@ static string _net_immune_reason()
     return "";
 }
 
-bool trap_def::active() const
+bool trap_is_bad_for_player(dungeon_feature_type type)
 {
-    return type != TRAP_UNASSIGNED;
+    return type == DNGN_TRAP_ALARM
+           || type == DNGN_TRAP_DISPERSAL
+           || type == DNGN_TRAP_ZOT
+           || type == DNGN_TRAP_NET
+           || type == DNGN_TRAP_PLATE
+           || type == DNGN_TRAP_TYRANT
+           || type == DNGN_TRAP_ARCHMAGE
+           || type == DNGN_TRAP_HARLEQUIN
+           || type == DNGN_TRAP_DEVOURER;
 }
 
-void trap_def::destroy(bool known)
-{
-    if (!in_bounds(pos))
-        die("Trap position out of bounds!");
-
-    env.grid(pos) = DNGN_FLOOR;
-    if (known)
-    {
-        env.map_knowledge(pos).set_feature(DNGN_FLOOR);
-        StashTrack.update_stash(pos);
-    }
-    env.trap.erase(pos);
-}
-
-void trap_def::prepare_ammo(int charges)
-{
-    if (charges)
-    {
-        ammo_qty = charges;
-        return;
-    }
-    switch (type)
-    {
-    case TRAP_GOLUBRIA:
-        // really, time until it vanishes
-        ammo_qty = 10 + random2(10);
-        break;
-    case TRAP_TELEPORT:
-        ammo_qty = 1;
-        break;
-    default:
-        ammo_qty = 0;
-        break;
-    }
-}
-
-void trap_def::reveal()
-{
-    env.grid(pos) = feature();
-}
-
-string trap_def::name(description_level_type desc) const
-{
-    if (type >= NUM_TRAPS)
-        return "buggy";
-
-    string basename = full_trap_name(type);
-    if (desc == DESC_A)
-    {
-        string prefix = "a";
-        if (is_vowel(basename[0]))
-            prefix += 'n';
-        prefix += ' ';
-        return prefix + basename;
-    }
-    else if (desc == DESC_THE)
-        return string("the ") + basename;
-    else                        // everything else
-        return basename;
-}
-
-bool trap_def::is_bad_for_player() const
-{
-    return type == TRAP_ALARM
-           || type == TRAP_DISPERSAL
-           || type == TRAP_ZOT
-           || type == TRAP_NET
-           || type == TRAP_PLATE
-           || type == TRAP_TYRANT
-           || type == TRAP_ARCHMAGE
-           || type == TRAP_HARLEQUIN
-           || type == TRAP_DEVOURER;
-}
-
-bool trap_def::is_safe(actor* act) const
+bool trap_is_safe(dungeon_feature_type type, const actor* act)
 {
     if (!act)
         act = &you;
 
     // TODO: For now, just assume they're safe; they don't damage outright,
     // and the messages get old very quickly
-    if (type == TRAP_WEB) // && act->is_web_immune()
+    if (type == DNGN_TRAP_WEB) // && act->is_web_immune()
         return true;
-
-#if TAG_MAJOR_VERSION == 34
-    if (is_removed_trap(type))
-        return true;
-#endif
 
     if (!act->is_player())
-        return is_bad_for_player();
+        return trap_is_bad_for_player(type);
 
     // No prompt (teleport traps are ineffective if wearing a -Tele item)
-    if ((type == TRAP_TELEPORT || type == TRAP_TELEPORT_PERMANENT)
+    if ((type == DNGN_TRAP_TELEPORT || type == DNGN_TRAP_TELEPORT_PERMANENT)
         && you.no_tele())
     {
         return true;
     }
 
-    if (type == TRAP_GOLUBRIA || type == TRAP_SHAFT)
+    if (type == DNGN_PASSAGE_OF_GOLUBRIA || type == DNGN_TRAP_SHAFT)
         return true;
 
-    if (type == TRAP_NET && !_net_immune_reason().empty())
+    if (type == DNGN_TRAP_NET && !_net_immune_reason().empty())
         return true;
 
     // Let players specify traps as safe via lua.
-    if (clua.callbooleanfn(false, "c_trap_is_safe", "s", trap_name(type).c_str()))
+    if (clua.callbooleanfn(false, "c_trap_is_safe", "s", dungeon_feature_name(type)))
         return true;
 
     return false;
@@ -265,18 +194,6 @@ const char* held_status(actor *act)
         return "caught in a web";
 }
 
-vector<coord_def> find_golubria_on_level()
-{
-    vector<coord_def> ret;
-    for (rectangle_iterator ri(coord_def(0, 0), coord_def(GXM-1, GYM-1)); ri; ++ri)
-    {
-        trap_def *trap = trap_at(*ri);
-        if (trap && trap->type == TRAP_GOLUBRIA)
-            ret.push_back(*ri);
-    }
-    return ret;
-}
-
 enum class passage_type
 {
     free,
@@ -288,16 +205,22 @@ static passage_type _find_other_passage_side(coord_def& to)
 {
     vector<coord_def> clear_passages;
     bool has_blocks = false;
-    for (coord_def passage : find_golubria_on_level())
+
+    vector<coord_def> all_passages;
+    for (rectangle_iterator ri(coord_def(0, 0), coord_def(GXM-1, GYM-1)); ri; ++ri)
     {
-        if (passage != to)
+        if (env.grid(*ri) == DNGN_PASSAGE_OF_GOLUBRIA)
         {
-            if (!actor_at(passage))
-                clear_passages.push_back(passage);
-            else
-                has_blocks = true;
+            if (*ri != to)
+            {
+                if (!actor_at(*ri))
+                    clear_passages.push_back(*ri);
+                else
+                    has_blocks = true;
+            }
         }
     }
+
     const int choices = clear_passages.size();
     if (choices < 1)
         return has_blocks ? passage_type::blocked : passage_type::none;
@@ -328,7 +251,7 @@ static const vector<pair<function<void ()>, int>> zot_effects = {
     { [] {
              coord_def pt = find_gateway_location(&you);
              if (pt != coord_def(0, 0))
-                 create_malign_gateway(pt, BEH_HOSTILE, "a Zot trap", 150);
+                 create_malign_gateway(pt, MID_NOBODY, BEH_HOSTILE, "a Zot trap", 150);
          }, 1 },
     { [] {
               mgen_data mg = mgen_data::hostile_at(MONS_TWISTER,
@@ -348,9 +271,18 @@ static void _zot_trap()
     (*random_choose_weighted(zot_effects))();
 }
 
-void trap_def::trigger(actor& triggerer)
+// Triggers a trap-like feature at a given actor's location.
+// (If there isn't one, nothing happens)
+void trigger_trap(actor& triggerer)
 {
+    dungeon_feature_type type = env.grid(triggerer.pos());
+    if (!feat_is_trap(type))
+        return;
+
     const bool you_trigger = triggerer.is_player();
+
+    // Store the position now in case it gets cleared in between.
+    const coord_def pos(triggerer.pos());
 
     // Traps require line of sight without blocking translocation effects.
     // Requiring LOS prevents monsters from dispersing out of vaults that have
@@ -360,24 +292,17 @@ void trap_def::trigger(actor& triggerer)
     if (!you.see_cell_no_trans(pos))
         return;
 
-    // If set, the trap will be removed at the end of the
-    // triggering process.
-    bool trap_destroyed = false, know_trap_destroyed = false;
-
     monster* m = triggerer.as_monster();
 
     // Tentacles aren't real monsters, and shouldn't invoke traps.
     if (m && mons_is_tentacle_or_tentacle_segment(m->type))
         return;
 
-    // Store the position now in case it gets cleared in between.
-    const coord_def p(pos);
-
     switch (type)
     {
-    case TRAP_GOLUBRIA:
+    case DNGN_PASSAGE_OF_GOLUBRIA:
     {
-        coord_def to = p;
+        coord_def to = pos;
         passage_type search_result = _find_other_passage_side(to);
         if (search_result == passage_type::free)
         {
@@ -390,9 +315,8 @@ void trap_def::trigger(actor& triggerer)
             bool moved = triggerer.move_to(to, MV_TRANSLOCATION | MV_GOLUBRIA);
             ASSERT(moved);
 
-            place_cloud(CLOUD_TLOC_ENERGY, p, 1 + random2(3), &triggerer);
-            trap_destroyed = true;
-            know_trap_destroyed = you_trigger;
+            place_cloud(CLOUD_TLOC_ENERGY, pos, 1 + random2(3), &triggerer);
+            destroy_trap(pos);
         }
         else if (you_trigger)
         {
@@ -401,14 +325,13 @@ void trap_def::trigger(actor& triggerer)
         }
         break;
     }
-    case TRAP_DISPERSAL:
+    case DNGN_TRAP_DISPERSAL:
     {
         dprf("Triggered dispersal.");
         if (you_trigger)
-            mprf("You enter %s!", name(DESC_A).c_str());
+            mprf("You enter a dispersal trap!");
         else
-            mprf("%s enters %s!", triggerer.name(DESC_THE).c_str(),
-                    name(DESC_A).c_str());
+            mprf("%s enters a dispersal trap!", triggerer.name(DESC_THE).c_str());
 
         for (monster_near_iterator mi(pos, LOS_NO_TRANS); mi; ++mi)
             if (!mi->no_tele())
@@ -421,23 +344,20 @@ void trap_def::trigger(actor& triggerer)
                             random_range(4, 7) * BASELINE_DELAY);
         break;
     }
-    case TRAP_TELEPORT:
-    case TRAP_TELEPORT_PERMANENT:
+    case DNGN_TRAP_TELEPORT:
+    case DNGN_TRAP_TELEPORT_PERMANENT:
         if (you_trigger)
-            mprf("You enter %s!", name(DESC_A).c_str());
-        if (ammo_qty > 0 && !--ammo_qty)
+            mprf("You enter a teleport trap!");
+        if (type == DNGN_TRAP_TELEPORT)
         {
-            // can't use trap_destroyed, as we might recurse into a shaft
-            // or be banished by a Zot trap
-            env.map_knowledge(pos).set_feature(DNGN_FLOOR);
-            mprf("%s disappears.", name(DESC_THE).c_str());
-            destroy();
+            destroy_trap(pos);
+            mpr("The teleport trap disappears.");
         }
         if (!triggerer.no_tele())
             triggerer.teleport(true);
         break;
 
-    case TRAP_TYRANT:
+    case DNGN_TRAP_TYRANT:
     {
         if (you_trigger)
             mpr("You enter a tyrant's trap.");
@@ -472,7 +392,7 @@ void trap_def::trigger(actor& triggerer)
         break;
     }
 
-    case TRAP_ARCHMAGE:
+    case DNGN_TRAP_ARCHMAGE:
     {
         if (you_trigger)
             mpr("You enter an archmage's trap.");
@@ -508,7 +428,7 @@ void trap_def::trigger(actor& triggerer)
         break;
     }
 
-    case TRAP_HARLEQUIN:
+    case DNGN_TRAP_HARLEQUIN:
     {
         if (you_trigger)
             mpr("You enter a harlequin's trap.");
@@ -544,7 +464,7 @@ void trap_def::trigger(actor& triggerer)
         break;
     }
 
-    case TRAP_DEVOURER:
+    case DNGN_TRAP_DEVOURER:
     {
         if (you_trigger)
             mpr("You enter a devourer's trap.");
@@ -566,13 +486,12 @@ void trap_def::trigger(actor& triggerer)
         break;
     }
 
-    case TRAP_ALARM:
+    case DNGN_TRAP_ALARM:
         // Alarms always mark the player, but not through glass
         // The trap gets destroyed to prevent the player from abusing an alarm
         // trap found in favourable terrain.
         if (!you.see_cell_no_trans(pos))
             break;
-        trap_destroyed = true;
         if (you_trigger)
             mpr("You set off the alarm!");
         else
@@ -580,21 +499,15 @@ void trap_def::trigger(actor& triggerer)
                  mons_intel(*m) >= I_HUMAN ? "pulls" : "sets off");
 
         if (silenced(pos))
-        {
-            mprf("%s vibrates slightly, failing to make a sound.",
-                 name(DESC_THE).c_str());
-        }
+            mpr("The alarm trap vibrates slightly, failing to make a sound.");
         else
-        {
-            string msg = make_stringf("%s emits a blaring wail!",
-                               name(DESC_THE).c_str());
-            noisy(40, pos, msg.c_str(), triggerer.mid);
-        }
+            noisy(40, pos, "The alarm trap emits a blaring wail!", triggerer.mid);
 
         you.sentinel_mark(true);
+        destroy_trap(pos);
         break;
 
-    case TRAP_NET:
+    case DNGN_TRAP_NET:
         {
         // Nets need LOF to hit the player, no netting through glass.
         if (!you.see_cell_no_trans(pos))
@@ -646,7 +559,7 @@ void trap_def::trigger(actor& triggerer)
         break;
         }
 
-    case TRAP_WEB:
+    case DNGN_TRAP_WEB:
         if (triggerer.is_web_immune())
         {
             if (m)
@@ -666,8 +579,8 @@ void trap_def::trigger(actor& triggerer)
                 mpr("You pick your way through the web.");
             else if (you.trap_in_web())
             {
-                if (ammo_qty == 1)
-                    trap_destroyed = true;
+                if (orig_terrain(pos) != DNGN_TRAP_WEB)
+                    destroy_trap(pos);
                 if (player_in_a_dangerous_place())
                     xom_is_stimulated(50);
             }
@@ -684,14 +597,14 @@ void trap_def::trigger(actor& triggerer)
                         mpr("A web moves frantically as something is caught in it!");
                     // Don't try to escape the web in the same turn
                     m->props[NEWLY_TRAPPED_KEY] = true;
-                    if (ammo_qty == 1)
-                        trap_destroyed = true;
+                    if (orig_terrain(pos) != DNGN_TRAP_WEB)
+                        destroy_trap(pos);
                 }
             }
         }
         break;
 
-    case TRAP_ZOT:
+    case DNGN_TRAP_ZOT:
         if (you_trigger)
         {
             mpr("You enter the Zot trap.");
@@ -712,7 +625,7 @@ void trap_def::trigger(actor& triggerer)
         }
         break;
 
-    case TRAP_SHAFT:
+    case DNGN_TRAP_SHAFT:
         // Neither the player nor their allies will fall down known shafts.
         if ((m && (m->wont_attack() || !m->will_trigger_shaft())) || you_trigger)
             break;
@@ -735,8 +648,7 @@ void trap_def::trigger(actor& triggerer)
         {
             mprf("%s shaft crumbles and collapses.",
                  triggerer_seen ? "The" : "A");
-            know_trap_destroyed = true;
-            trap_destroyed = true;
+            destroy_trap(pos);
 
             // If we shaft an invisible monster reactivate autopickup.
             // We need to check for actual invisibility rather than
@@ -750,144 +662,25 @@ void trap_def::trigger(actor& triggerer)
         }
         break;
 
-    case TRAP_PLATE:
+    case DNGN_TRAP_PLATE:
         dungeon_events.fire_position_event(DET_PRESSURE_PLATE, pos);
         break;
 
     default:
-#if TAG_MAJOR_VERSION == 34
-        if (is_removed_trap(type))
-        {
-            mpr("The trap seems to be inoperative.");
-            trap_destroyed = true;
-        }
-#endif
         break;
     }
-
-    if (trap_destroyed)
-        destroy(know_trap_destroyed);
 }
 
 void destroy_trap(const coord_def& pos)
 {
-    if (trap_def* ptrap = trap_at(pos))
-        ptrap->destroy();
-}
-
-trap_def* trap_at(const coord_def& pos)
-{
     if (!feat_is_trap(env.grid(pos)))
-        return nullptr;
+        return;
 
-    auto it = env.trap.find(pos);
-    ASSERT(it != env.trap.end());
-    ASSERT(it->second.pos == pos);
-    ASSERT(it->second.type != TRAP_UNASSIGNED);
-
-    return &it->second;
-}
-
-trap_type get_trap_type(const coord_def& pos)
-{
-    if (trap_def* ptrap = trap_at(pos))
-        return ptrap->type;
-
-    return TRAP_UNASSIGNED;
-}
-
-dungeon_feature_type trap_def::feature() const
-{
-    return trap_feature(type);
-}
-
-dungeon_feature_type trap_feature(trap_type type)
-{
-    switch (type)
+    dungeon_terrain_changed(pos, DNGN_FLOOR);
+    if (you.see_cell(pos))
     {
-    case TRAP_WEB:
-        return DNGN_TRAP_WEB;
-    case TRAP_SHAFT:
-        return DNGN_TRAP_SHAFT;
-    case TRAP_DISPERSAL:
-        return DNGN_TRAP_DISPERSAL;
-    case TRAP_TELEPORT:
-        return DNGN_TRAP_TELEPORT;
-    case TRAP_TELEPORT_PERMANENT:
-        return DNGN_TRAP_TELEPORT_PERMANENT;
-    case TRAP_TYRANT:
-        return DNGN_TRAP_TYRANT;
-    case TRAP_ARCHMAGE:
-        return DNGN_TRAP_ARCHMAGE;
-    case TRAP_HARLEQUIN:
-        return DNGN_TRAP_HARLEQUIN;
-    case TRAP_DEVOURER:
-        return DNGN_TRAP_DEVOURER;
-    case TRAP_ALARM:
-        return DNGN_TRAP_ALARM;
-    case TRAP_ZOT:
-        return DNGN_TRAP_ZOT;
-    case TRAP_GOLUBRIA:
-        return DNGN_PASSAGE_OF_GOLUBRIA;
-#if TAG_MAJOR_VERSION == 34
-    case TRAP_SHADOW:
-        return DNGN_TRAP_SHADOW;
-    case TRAP_SHADOW_DORMANT:
-        return DNGN_TRAP_SHADOW_DORMANT;
-    case TRAP_SPEAR:
-        return DNGN_TRAP_SPEAR;
-    case TRAP_BOLT:
-        return DNGN_TRAP_BOLT;
-#endif
-    case TRAP_NET:
-        return DNGN_TRAP_NET;
-    case TRAP_PLATE:
-        return DNGN_TRAP_PLATE;
-
-#if TAG_MAJOR_VERSION == 34
-    case TRAP_GAS:
-        return DNGN_TRAP_MECHANICAL;
-#endif
-
-    default:
-        die("placeholder trap type %d used", type);
-    }
-}
-
-trap_type trap_type_from_feature(dungeon_feature_type type)
-{
-    switch (type)
-    {
-    case DNGN_TRAP_WEB:
-        return TRAP_WEB;
-    case DNGN_TRAP_SHAFT:
-        return TRAP_SHAFT;
-    case DNGN_TRAP_DISPERSAL:
-        return TRAP_DISPERSAL;
-    case DNGN_TRAP_TELEPORT:
-        return TRAP_TELEPORT;
-    case DNGN_TRAP_TELEPORT_PERMANENT:
-        return TRAP_TELEPORT_PERMANENT;
-    case DNGN_TRAP_TYRANT:
-        return TRAP_TYRANT;
-    case DNGN_TRAP_ARCHMAGE:
-        return TRAP_ARCHMAGE;
-    case DNGN_TRAP_HARLEQUIN:
-        return TRAP_HARLEQUIN;
-    case DNGN_TRAP_DEVOURER:
-        return TRAP_DEVOURER;
-    case DNGN_TRAP_ALARM:
-        return TRAP_ALARM;
-    case DNGN_TRAP_ZOT:
-        return TRAP_ZOT;
-    case DNGN_PASSAGE_OF_GOLUBRIA:
-        return TRAP_GOLUBRIA;
-    case DNGN_TRAP_NET:
-        return TRAP_NET;
-    case DNGN_TRAP_PLATE:
-        return TRAP_PLATE;
-    default:
-        return TRAP_UNASSIGNED;
+        env.map_knowledge(pos).set_feature(DNGN_FLOOR);
+        StashTrack.update_stash(pos);
     }
 }
 
@@ -986,18 +779,18 @@ void do_trap_effects()
     // possibilities are allowed.
 
     // Teleport effects are allowed everywhere, no need to check
-    vector<trap_type> available_traps = { TRAP_TELEPORT };
+    vector<dungeon_feature_type> available_traps = { DNGN_TRAP_TELEPORT };
     // Don't shaft the player when shafts aren't allowed in the location or when
     //  it would be into a dangerous end.
     if (_is_valid_shaft_effect_level() && you.shaftable())
-        available_traps.push_back(TRAP_SHAFT);
+        available_traps.push_back(DNGN_TRAP_SHAFT);
     // No alarms on the first 4 floors
     if (env.absdepth0 > 3)
-        available_traps.push_back(TRAP_ALARM);
+        available_traps.push_back(DNGN_TRAP_ALARM);
 
     switch (*random_iterator(available_traps))
     {
-        case TRAP_SHAFT:
+        case DNGN_TRAP_SHAFT:
             dprf("Attempting to shaft player.");
             _print_malev();
             if (have_passive(passive_t::avoid_traps))
@@ -1009,7 +802,7 @@ void do_trap_effects()
                 set_shafted();
             break;
 
-        case TRAP_ALARM:
+        case DNGN_TRAP_ALARM:
             // Alarm effect alarms are always noisy, even if the player is
             // silenced, to avoid "travel only while silenced" behaviour.
             // XXX: improve messaging to make it clear there's a wail outside of the
@@ -1026,7 +819,7 @@ void do_trap_effects()
             apply_noises(); // Otherwise the noise from them won't kick in until the end of the turn.
             break;
 
-        case TRAP_TELEPORT:
+        case DNGN_TRAP_TELEPORT:
         {
             // XXX: Approximate old chance of triggering on an average floor.
             if (!one_chance_in(3) || !hostile_teleport_is_possible())
@@ -1126,18 +919,18 @@ int trap_rate_for_place()
  *                            May be NUM_TRAPS, if no traps were valid.
  */
 
-trap_type random_trap_for_place(bool dispersal_ok)
+dungeon_feature_type random_trap_for_place(bool dispersal_ok)
 {
     // zot traps are Very Special.
     // very common in zot...
     if (player_in_branch(BRANCH_ZOT) && coinflip())
-        return TRAP_ZOT;
+        return DNGN_TRAP_ZOT;
 
     // and elsewhere, increasingly common with depth
     // possible starting at depth 15 (end of D, late lair, lair branches)
     // XXX: is there a better way to express this?
     if (random2(1 + env.absdepth0) > 14 && one_chance_in(3))
-        return TRAP_ZOT;
+        return DNGN_TRAP_ZOT;
 
     const bool shaft_ok = is_valid_shaft_level() && !player_in_hell();
     const bool tele_ok = !crawl_state.game_is_sprint();
@@ -1157,48 +950,48 @@ trap_type random_trap_for_place(bool dispersal_ok)
     const bool devourer_ok = player_in_branch(BRANCH_SLIME)
                              || player_in_branch(BRANCH_PANDEMONIUM);
 
-    const pair<trap_type, int> trap_weights[] =
+    const pair<dungeon_feature_type, int> trap_weights[] =
     {
-        { TRAP_DISPERSAL, dispersal_ok && tele_ok  ? 4 : 0},
-        { TRAP_TELEPORT,  tele_ok      ? 5 : 0},
-        { TRAP_SHAFT,     shaft_ok     ? 4 : 0},
-        { TRAP_ALARM,     alarm_ok     ? 5 : 0},
-        { TRAP_TYRANT,    tyrant_ok    ? 3 : 0},
-        { TRAP_ARCHMAGE,  archmage_ok  ? 3 : 0},
-        { TRAP_HARLEQUIN, harlequin_ok ? 2 : 0},
-        { TRAP_DEVOURER,  devourer_ok  ? 2 : 0},
+        { DNGN_TRAP_DISPERSAL, dispersal_ok && tele_ok  ? 4 : 0},
+        { DNGN_TRAP_TELEPORT,  tele_ok      ? 5 : 0},
+        { DNGN_TRAP_SHAFT,     shaft_ok     ? 4 : 0},
+        { DNGN_TRAP_ALARM,     alarm_ok     ? 5 : 0},
+        { DNGN_TRAP_TYRANT,    tyrant_ok    ? 3 : 0},
+        { DNGN_TRAP_ARCHMAGE,  archmage_ok  ? 3 : 0},
+        { DNGN_TRAP_HARLEQUIN, harlequin_ok ? 2 : 0},
+        { DNGN_TRAP_DEVOURER,  devourer_ok  ? 2 : 0},
     };
 
-    const trap_type *trap = random_choose_weighted(trap_weights);
-    return trap ? *trap : NUM_TRAPS;
+    const dungeon_feature_type *trap = random_choose_weighted(trap_weights);
+    return trap ? *trap : DNGN_FLOOR;
 }
 
 void place_webs(int num)
 {
-    trap_def ts;
     for (int j = 0; j < num; j++)
     {
         int tries;
+        coord_def pos;
         // this is hardly ever enough to place many webs, most of the time
         // it will fail prematurely. Which is fine.
         for (tries = 0; tries < 200; ++tries)
         {
-            ts.pos.x = random2(GXM);
-            ts.pos.y = random2(GYM);
-            if (in_bounds(ts.pos)
-                && env.grid(ts.pos) == DNGN_FLOOR
-                && !map_masked(ts.pos, MMT_NO_TRAP))
+            pos.x = random2(GXM);
+            pos.y = random2(GYM);
+            if (in_bounds(pos)
+                && env.grid(pos) == DNGN_FLOOR
+                && !map_masked(pos, MMT_NO_TRAP))
             {
                 // Calculate weight.
                 int weight = 0;
-                for (adjacent_iterator ai(ts.pos); ai; ++ai)
+                for (adjacent_iterator ai(pos); ai; ++ai)
                 {
                     // Solid wall?
                     int solid_weight = 0;
                     // Orthogonals weight three, diagonals 1.
                     if (cell_is_solid(*ai))
                     {
-                        solid_weight = (ai->x == ts.pos.x || ai->y == ts.pos.y)
+                        solid_weight = (ai->x == pos.x || ai->y == pos.y)
                                         ? 3 : 1;
                     }
                     weight += solid_weight;
@@ -1214,10 +1007,7 @@ void place_webs(int num)
         if (tries >= 200)
             break;
 
-        ts.type = TRAP_WEB;
-        ts.prepare_ammo();
-        ts.reveal();
-        env.trap[ts.pos] = ts;
+        env.grid(pos) = DNGN_TRAP_WEB;
     }
 }
 
@@ -1369,31 +1159,3 @@ void player::stop_being_caught(bool drop_net)
     you.redraw_evasion = true;
     quiver::set_needs_redraw();
 }
-
-// Whether this trap type can be placed in vaults by the ^ glyph
-bool is_regular_trap(trap_type trap)
-{
-#if TAG_MAJOR_VERSION == 34
-    return !is_removed_trap(trap)
-           && (trap <= TRAP_MAX_REGULAR || trap == TRAP_DISPERSAL);
-#else
-    return trap <= TRAP_MAX_REGULAR;
-#endif
-}
-
-#if TAG_MAJOR_VERSION == 34
-bool is_removed_trap(trap_type trap)
-{
-    switch (trap)
-    {
-    case TRAP_SPEAR:
-    case TRAP_BOLT:
-    case TRAP_GAS:
-    case TRAP_SHADOW:
-    case TRAP_SHADOW_DORMANT:
-        return true;
-    default:
-        return false;
-    }
-}
-#endif

@@ -44,12 +44,26 @@ AUTOFIGHT_WAIT = false
 AUTOFIGHT_PROMPT_RANGE = true
 AUTOMAGIC_ACTIVE = false
 AUTOFIGHT_FORCE_FIRE = false
+AUTOFIGHT_STAMPEDE = false
+
+-- A list of monster positions to exclude on the next pass of get_target()
+-- (Must be cleared with the same call to autofight.)
+local excluded_pos = {}
 
 local function delta_to_cmd(dx, dy)
   local d2v = {
     [-1] = { [-1] = "CMD_MOVE_UP_LEFT",  [0] = "CMD_MOVE_LEFT",  [1] = "CMD_MOVE_DOWN_LEFT"},
     [0]  = { [-1] = "CMD_MOVE_UP",                               [1] = "CMD_MOVE_DOWN"},
     [1]  = { [-1] = "CMD_MOVE_UP_RIGHT", [0] = "CMD_MOVE_RIGHT", [1] = "CMD_MOVE_DOWN_RIGHT"},
+  }
+  return d2v[dx][dy]
+end
+
+local function delta_to_attack_cmd(dx, dy)
+  local d2v = {
+    [-1] = { [-1] = "CMD_ATTACK_UP_LEFT",  [0] = "CMD_ATTACK_LEFT",  [1] = "CMD_ATTACK_DOWN_LEFT"},
+    [0]  = { [-1] = "CMD_ATTACK_UP",                                 [1] = "CMD_ATTACK_DOWN"},
+    [1]  = { [-1] = "CMD_ATTACK_UP_RIGHT", [0] = "CMD_ATTACK_RIGHT", [1] = "CMD_ATTACK_DOWN_RIGHT"},
   }
   return d2v[dx][dy]
 end
@@ -223,10 +237,11 @@ local AF_FIRE = 3     -- target in fire range + ranged attack available
 
 local function get_monster_info(dx,dy,no_move)
   m = monster.get_monster_at(dx,dy)
-  name = m:name()
   if not m then
     return nil
   end
+
+  name = m:name()
   info = {}
   info.distance = (abs(dx) > abs(dy)) and -abs(dx) or -abs(dy)
   if have_ranged() then
@@ -245,14 +260,14 @@ local function get_monster_info(dx,dy,no_move)
       info.attack_type = can_reach(dx, dy) and AF_REACHING or AF_MOVES
     end
   end
-  if info.attack_type == 0 and have_quiver_action(no_move) and you.see_cell_no_trans(dx, dy) then
+  if info.attack_type == 0 and have_quiver_action(no_move) and you.see_cell_solid_see(dx, dy) then
     info.attack_type = AF_FIRE
   end
   if info.attack_type ~= AF_FIRE and AUTOFIGHT_FORCE_FIRE then
     -- firing can often be preempted by melee etc, but we have been called by
     -- CMD_AUTOFIRE, so force firing.
     -- TODO: refactor so that this is less hacky
-    info.attack_type = you.see_cell_no_trans(dx,dy) and AF_FIRE or AF_FAILS
+    info.attack_type = you.see_cell_solid_see(dx,dy) and AF_FIRE or AF_FAILS
   end
 
   -- We can possibly move towards warded enemies, but not attack them while immune
@@ -292,34 +307,16 @@ local function compare_monster_info(m1, m2)
   return false
 end
 
-local function is_candidate_for_attack(x,y, no_move)
-  m = monster.get_monster_at(x, y)
-  --if m then crawl.mpr("Checking: (" .. x .. "," .. y .. ") " .. m:name()) end
-  if not m then
-    return false
-  end
-  if m:name() == "butterfly"
-      or m:name() == "orb of destruction" then
-    return false
-  end
-  if m:is_firewood() then
-  --crawl.mpr("... is firewood.")
-    if string.find(m:name(), "ballistomycete") then
+local function is_excluded_pos(x, y)
+  for index, coord in ipairs(excluded_pos) do
+    if coord[1] == x and coord[2] == y then
       return true
     end
-    return false
-  end
-  if m:is_damage_immune() and (no_move or not m:is("warding")) then
-    return false
-  end
-  if m:attitude() == ATT_HOSTILE
-      or m:attitude() == ATT_NEUTRAL and m:is("frenzied") then
-    return true
   end
   return false
 end
 
-local function get_target(no_move)
+local function get_target(no_move, check_paths)
   local los_radius = you.los()
   local x, y, bestx, besty, best_info, new_info
   bestx = 0
@@ -327,7 +324,7 @@ local function get_target(no_move)
   best_info = nil
   for x = -los_radius,los_radius do
     for y = -los_radius,los_radius do
-      if is_candidate_for_attack(x, y, no_move) then
+      if not is_excluded_pos(x, y) and autofight.is_candidate_for_attack(x, y, no_move, check_paths) then
         new_info = get_monster_info(x, y, no_move)
         if (not best_info) or compare_monster_info(new_info, best_info) then
           bestx = x
@@ -340,7 +337,35 @@ local function get_target(no_move)
   return bestx, besty, best_info
 end
 
-local function attack_fire(x,y)
+local function attack_fire(orig_x, orig_y, no_move, pierce)
+  -- Try to find a better place to shoot that goes through (x, y).
+  x, y = autofight.best_aim(orig_x, orig_y, pierce)
+
+  -- If there was no valid path to this otherwise accessible-looking target
+  -- (likely due to non-hostile monsters in the way), exclude it and try to
+  -- find a different monster to shoot at.
+  -- (This is recursive, but the second pass also does checking for many blocked
+  -- fire paths before reaching this point, which will usually result in not
+  -- needing to recurse more than once.)
+  if (x == 0 and y == 0) then
+    -- Add exclusion and get a new target.
+    table.insert(excluded_pos, {orig_x, orig_y})
+    new_x, new_y, info = get_target(no_move, true)
+
+    local ret = false
+    -- If we found a valid target, try to fire at it.
+    if (new_x ~= 0 or new_y ~= 0) then
+      ret = attack_fire(new_x, new_y, no_move, pierce)
+    end
+
+    -- Regardless of whether we did or not, clear existing exclusions
+    for i in ipairs (excluded_pos) do
+      excluded_pos[i] = nil
+    end
+
+    return ret
+  end
+
   if AUTOFIGHT_FORCE_FIRE or not have_ranged() then
     -- fire from quiver
     crawl.do_targeted_command("CMD_FIRE", x, y, AUTOFIGHT_FIRE_STOP)
@@ -348,6 +373,8 @@ local function attack_fire(x,y)
     -- fire a wielded launcher
     crawl.do_targeted_command("CMD_PRIMARY_ATTACK", x, y, AUTOFIGHT_FIRE_STOP)
   end
+
+  return true
 end
 
 local function attack_reach(x,y)
@@ -355,7 +382,11 @@ local function attack_reach(x,y)
 end
 
 local function attack_melee(x,y)
-  crawl.do_commands({delta_to_cmd(x, y)})
+  if AUTOFIGHT_STAMPEDE then
+    crawl.do_commands({delta_to_cmd(x, y)})
+  else
+    crawl.do_commands({delta_to_attack_cmd(x, y)})
+  end
 end
 
 local function set_stop_level(key, value, mode)
@@ -368,6 +399,10 @@ end
 
 local function set_af_throw(key, value, mode)
   AUTOFIGHT_THROW = string.lower(value) ~= "false"
+end
+
+local function set_af_stampede(key, value, mode)
+  AUTOFIGHT_STAMPEDE = string.lower(value) ~= "false"
 end
 
 local function set_af_throw_nomove(key, value, mode)
@@ -427,7 +462,8 @@ function autofight_check_preconditions(check_caught)
 end
 
 function attack(allow_movement, check_caught)
-  local x, y, info = get_target(not allow_movement)
+  local pierce = autofight.is_piercing(AUTOFIGHT_FORCE_FIRE or not have_ranged())
+  local x, y, info = get_target(not allow_movement, false)
   if not autofight_check_preconditions(check_caught) then
     return
   end
@@ -444,7 +480,9 @@ function attack(allow_movement, check_caught)
       crawl.mpr("No target in view!")
     end
   elseif info.attack_type == AF_FIRE then
-    attack_fire(x,y)
+    if (not attack_fire(x,y, not allow_movement, pierce)) then
+      crawl.mpr("No reachable target in view!")
+    end
   elseif info.attack_type == AF_MELEE then
     attack_melee(x,y)
   elseif info.attack_type == AF_REACHING then
@@ -522,6 +560,7 @@ chk_lua_option.autofight_stop = set_stop_level
 chk_lua_option.autofight_caught = set_af_caught
 chk_lua_option.autofight_fires = set_af_throw
 chk_lua_option.autofight_nomove_fires = set_af_throw_nomove
+chk_lua_option.autofight_stampede = set_af_stampede
 -- the following two options are here for backwards compatibility
 chk_lua_option.autofight_throw = set_af_throw
 chk_lua_option.autofight_throw_nomove = set_af_throw_nomove

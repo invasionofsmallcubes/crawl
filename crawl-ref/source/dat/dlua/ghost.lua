@@ -84,8 +84,8 @@ function setup_xom_dancing_weapon(e, glyph)
         good_weapons = {"morningstar", "dire flail", "broad axe", "partisan"}
         quality = crawl.one_chance_in(4) and "good_item" or ""
     elseif dgn.persist.necropolis_difficulty == "snake" or dgn.persist.necropolis_difficulty == "swamp" or dgn.persist.necropolis_difficulty == "shoals" or dgn.persist.necropolis_difficulty == "spider" then
-        base_weapons = {"rapier", "long sword", "scimitar", "flail",
-                        "morningstar", "dire flail", "war axe", "broad axe",
+        base_weapons = {"rapier", "athame", "long sword", "scimitar",
+                        "flail", "morningstar", "war axe", "broad axe",
                         "trident", "partisan", "halberd", "quarterstaff"}
         good_weapons = {"great sword", "great mace", "battleaxe", "glaive"}
         great_weapons = {"quick blade", "demon blade", "double sword",
@@ -96,7 +96,7 @@ function setup_xom_dancing_weapon(e, glyph)
                   or crawl.one_chance_in(4) and "randart"
                   or ""
     else
-        base_weapons = {"rapier", "scimitar", "great sword", "morningstar",
+        base_weapons = {"athame", "scimitar", "great sword", "morningstar",
                         "dire flail", "great mace", "war axe", "broad axe",
                         "battleaxe", "partisan", "glaive", "quarterstaff"}
         good_weapons = {}

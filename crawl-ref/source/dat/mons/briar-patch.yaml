@@ -7,7 +7,7 @@ holiness: [plant]
 will: invuln
 attacks:
 hd: 10
-hp_10x: 150
+hp_10x: 300
 ac: 10
 ev: 0
 intelligence: brainless

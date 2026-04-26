@@ -459,7 +459,7 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_KIKU_UNEARTH_WRETCHES, "Unearth Wretches",
             3, 0, 5, -1, {fail_basis::invo, 40, 5, 20}, abflag::none },
         { ABIL_KIKU_SIGN_OF_RUIN, "Sign of Ruin",
-            5, 0, 4, -1, {fail_basis::invo, 60, 5, 20}, abflag::target },
+            5, 0, 4, LOS_MAX_RANGE, {fail_basis::invo, 60, 5, 20}, abflag::target },
         { ABIL_KIKU_GIFT_CAPSTONE_SPELLS, "Receive Forbidden Knowledge",
             0, 0, 0, -1, {fail_basis::invo}, abflag::none },
         { ABIL_KIKU_BLESS_WEAPON, "Brand Weapon With Pain",
@@ -626,7 +626,7 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_DITHMENOS_SHADOWSLIP, "Shadowslip",
             4, 60, 4, -1, {fail_basis::invo, 50, 6, 30}, abflag::instant },
         { ABIL_DITHMENOS_APHOTIC_MARIONETTE, "Aphotic Marionette",
-            5, 0, 3, -1, {fail_basis::invo, 60, 4, 25}, abflag::target },
+            5, 0, 3, LOS_MAX_RANGE, {fail_basis::invo, 60, 4, 25}, abflag::target },
         { ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL, "Primordial Nightfall",
             8, 0, 13, -1, {fail_basis::invo, 80, 4, 25}, abflag::none },
 
@@ -2641,6 +2641,8 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
     case ABIL_CHEIBRIADOS_TIME_BEND:
     case ABIL_USKAYAW_STOMP:
         return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS, 1, 0, 1);
+    case ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER:
+        return make_unique<targeter_radius>(&you, LOS_SOLID, 3);
 
     // Multiposition:
     case ABIL_SPIDER_JUMP:

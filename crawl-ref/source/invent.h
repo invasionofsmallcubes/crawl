@@ -132,6 +132,8 @@ public:
     void set_preselect(const vector<SelItem> *pre);
     void set_type(menu_type t);
 
+    void hover_item(const item_def* item);
+
     // Sets function to annotate the title with meta-information if needed.
     // If you set this, do so *before* calling set_title, or it won't take
     // effect.

@@ -49,7 +49,7 @@ function ossuary_portal(e)
   e.kfeat("O = enter_ossuary")
   e.colour("123' = yellow")
   e.colour("c = white")
-  e.ftile("123'O = floor_sandstone")
+  e.ftile("123'OG = floor_sandstone")
   e.tile("c = stone_wall_ossuary")
 end
 
@@ -247,7 +247,6 @@ ENDMAP
 
 NAME: nicolae_ossuary_entry_monument
 TAGS: transparent
-FTILE: G = floor_sandstone
 : ossuary_portal(_G)
 MAP
 ..G..
@@ -281,7 +280,6 @@ ENDMAP
 
 NAME: nicolae_ossuary_entry_ruins
 TAGS: transparent
-FTILE: GO = floor_sandstone
 SUBST: c = -c, - = ''., ^ = '..
 : ossuary_portal(_G)
 MAP
@@ -392,7 +390,7 @@ MONS:    jackal zombie / adder zombie / kobold zombie / \
 ITEM:    any scroll w:2 / any scroll q:2 w:3 / \
          any potion w:4 / any potion q:2 w:6
 : inkwell_talisman_chance(_G, "e")
-KFEAT:   T = alarm trap
+KFEAT:   T = trap_alarm
 SHUFFLE: dwyz
 SUBST:   wy = 2, T = T.
 NSUBST:  z = 1:1 / *:3, 2 = 1:2 / * = 233, ? = 1:2 / *:3
@@ -615,7 +613,7 @@ ITEM:    scroll of noise pre_id w:30 / scroll of poison pre_id / \
 # occasionally just use this
 ITEM:    any potion / any scroll w:5
 : inkwell_talisman_chance(_G, "g", true, "$")
-KFEAT:   ^ = alarm trap
+KFEAT:   ^ = trap_alarm
 SHUFFLE: hjkl
 SUBST:   h : d, j : e, k : de, l : de.
 NSUBST:  f = 6:f / *:e, . = 6:^ / *:.
@@ -820,8 +818,8 @@ MONS:    kobold zombie / centaur zombie w:5 / gnoll zombie
 # Most of the loot helps right here, if need be.
 : item( dgn.loot_scrolls .. " / " .. dgn.loot_potions )
 : inkwell_talisman_chance(_G, "e")
-KFEAT:   ~ = net trap / alarm trap w:30 / dispersal trap
-KFEAT:   ^ = net trap w:20 / dispersal trap w:5
+KFEAT:   ~ = trap_net / trap_alarm w:30 / trap_dispersal
+KFEAT:   ^ = trap_net w:20 / trap_dispersal w:5
 SUBST:   M = 11., z = c...
 NSUBST:  3 = 1:2 / 4:. / * = 3.
 NSUBST:  ~ = 4:~ / 40:. / * = ~:25 .:200
@@ -908,7 +906,7 @@ ITEM:    any scroll / any potion
 KITEM:   x = any scroll / any potion
 KITEM:   y = any scroll w:5 / any potion w:5 / nothing w:10
 : inkwell_talisman_chance(_G, "%")
-KFEAT:   ! = alarm trap
+KFEAT:   ! = trap_alarm
 KFEAT:   ? = altar_yredelemnul
 SHUFFLE: Bb / Zz, Dd / Ww, Ee / Vv
 SUBST:   ZzWwVv = c, BDE = X
@@ -955,9 +953,9 @@ ITEM:    any scroll / any potion
 NSUBST:  d = 1:d / 1:e / * = dddd$
 : inkwell_talisman_chance(_G, "e")
 : ossuary_setup_features(_G)
-KFEAT:   ! = alarm trap
+KFEAT:   ! = trap_alarm
 KFEAT:   ? = altar_kikubaaqudgha
-KFEAT:   ^ = floor w:20 / alarm trap
+KFEAT:   ^ = floor w:20 / trap_alarm
 NSUBST:  ' = 40:1 / 5:2 / 5 = 112 / 30:^ / .
 : ossuary_setup_features(_G)
 MAP
@@ -1008,7 +1006,7 @@ KMONS:  6 = spectral bullfrog / spectral scorpion
 ITEM:   any potion / any scroll / nothing w:1
 : inkwell_talisman_chance(_G, "e")
 KFEAT:  IP`" = floor
-KFEAT:  ^ = alarm trap
+KFEAT:  ^ = trap_alarm
 NSUBST: I = 1:5i / 4:I / 5 = I` / *:`, P = 1:6p / 4:P / 5 = P" / *:"
 COLOUR: I` = cyan
 COLOUR: P" = green
@@ -1045,7 +1043,7 @@ ENDMAP
 
 # A larger, less orderly ossuary than usual.
 # Petrified trees in this strange cavern are the only appropriate walls thin
-# enough to help the skulls serve as intelligent alarm traps.
+# enough to help the skulls serve as intelligent trap_alarms.
 NAME:    ossuary_due_cavern
 WEIGHT:  10
 ORIENT:  encompass
@@ -1058,7 +1056,7 @@ KMONS:   4 = burial acolyte
 ITEM:    any scroll / any potion
 ITEM:    any scroll / any potion / any wand w:4
 : inkwell_talisman_chance(_G, "f")
-KFEAT:   ^ = teleport trap
+KFEAT:   ^ = trap_teleport
 KFEAT:   t = petrified_tree
 NSUBST:  B : 1:+ / 1:+ccc / *:c, C : 1:+ / 1:+ccc / *:c
 SHUFFLE: VX, yzYZ
@@ -1113,7 +1111,7 @@ MONS:   bullfrog simulacrum / spectral scorpion / \
 MONS:   mummy
 ITEM:   any scroll / any potion / any scroll q:2 w:2 / any potion q:2 w:2
 : inkwell_talisman_chance(_G, "e")
-KFEAT:  ^ = alarm trap
+KFEAT:  ^ = trap_alarm
 NSUBST: 2 = 1:2 / 1 = 12 / *:1, 1 = 1:. / 1:1. / *:1, ^ = 1:^ / 1:. / *:^.
 : ossuary_setup_features(_G)
 MAP
@@ -1156,7 +1154,7 @@ MONS:   scorpion zombie, human zombie / elf zombie
 MONS:   generate_awake mummy, scorpion
 ITEM:   any scroll / any potion / gold w:4
 : inkwell_talisman_chance(_G, "e")
-KFEAT:  ~ = net trap
+KFEAT:  ~ = trap_net
 SUBST:  ~ = ~.
 NSUBST: B = 1:2 / *:1, C = 1:2 / 1:111223 / *:1, D = 1:2 / 1:123 / *:1
 : ossuary_setup_features(_G)
@@ -1263,7 +1261,7 @@ KMONS:   5 = human zombie / elf zombie / centaur zombie
 KMONS:   F = marrowcuda
 KITEM:   123d = any potion / any scroll / any jewellery w:1
 : inkwell_talisman_chance(_G, "e", true, "$")
-KFEAT:   ^ = alarm trap
+KFEAT:   ^ = trap_alarm
 KFEAT:   C = altar_kikubaaqudgha / altar_hepliaklqana w:2
 KFEAT:   DF = dry_fountain
 SHUFFLE: HIJKLMNOPQRSTUVW
@@ -1386,7 +1384,7 @@ NSUBST:  1 = 1:1 / 1:12 / 1:3 / * = 3., ? = 1:2 / 1:23 / 1:334 / * = 3.
 NSUBST:  " = 4:^ / 3=^" / *:"
 NSUBST:  . = 6:3 / 2:4 / 12 = 3. / *:.
 NSUBST:  d = 1:* / 1:*d / *:d
-KFEAT:   ^ = net trap / alarm trap w:30 / dispersal trap
+KFEAT:   ^ = trap_net / trap_alarm w:30 / trap_dispersal
 KFEAT:   ~ = broken_door
 : ossuary_setup_features(_G)
 MAP
@@ -1426,7 +1424,7 @@ MONS:   goblin zombie / hobgoblin zombie / adder zombie / orc zombie /\
         gnoll zombie
 ITEM:   any potion w:15 / any scroll w:15 / gold w:6
 : inkwell_talisman_chance(_G, "e")
-KFEAT:  ^ = net trap / alarm trap w:30 / dispersal trap
+KFEAT:  ^ = trap_net / trap_alarm w:30 / trap_dispersal
 NSUBST: 3 = 2:3 / *=3...
 NSUBST: - = 4:4 / 1:3 / 8 = 4. / *:., ~ = 4:4 / 1:3 / 8 = 4. / *:.
 NSUBST: ! = 3:4 / 1:3 / 1:3.. / 6 = 4. / *:., ' = 3:4 / 1:3 / 1:3.. / 6 = 4. / *:.
@@ -1472,7 +1470,7 @@ MONS:   orc zombie w:30 / gnoll zombie / ogre zombie w:2 /\
 KMONS:  B = burial acolyte
 ITEM:   any potion w:15 / any scroll w:15 / gold w:6
 : inkwell_talisman_chance(_G, "e")
-KFEAT:  ^ = alarm trap
+KFEAT:  ^ = trap_alarm
 KFEAT:  B = altar_kikubaaqudgha / altar_beogh w:2
 KFEAT:  t = petrified_tree
 SUBST:  3 = 3..

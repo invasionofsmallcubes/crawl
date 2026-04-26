@@ -676,6 +676,7 @@ static bool _ely_protect_ally(monster* mons, killer_type killer)
     if (mons->holiness() & ~(MH_HOLY | MH_NATURAL | MH_PLANT)
         || !mons->friendly()
         || !you.can_see(*mons) // for simplicity
+        || !monster_habitable_grid(mons, mons->pos())
         || !one_chance_in(20))
     {
         return false;
@@ -702,6 +703,7 @@ static bool _ely_heal_monster(monster* mons, killer_type killer, int i)
         || mons->is_peripheral()
         || mons->props.exists(ELY_WRATH_HEALED_KEY)
         || mons->get_experience_level() < random2(you.experience_level)
+        || !monster_habitable_grid(mons, mons->pos())
         || !one_chance_in(3))
     {
         return false;
@@ -856,7 +858,7 @@ static bool _beogh_forcibly_convert_orc(monster &mons, killer_type killer)
         const bool follower = MON_KILL(killer);
         conv_t ctype = follower ? conv_t::deathbed_follower
                                 : conv_t::deathbed;
-        if (mons.has_ench(ENCH_VENGEANCE_TARGET))
+        if (mons.is_vengeance_target())
         {
             ctype = follower ? conv_t::vengeance_follower
                              : conv_t::vengeance;
@@ -955,7 +957,7 @@ static bool _blorkula_bat_split(monster& blorkula, killer_type ktype)
                                   random_range(450, 900) * BASELINE_DELAY));
 
 #ifdef USE_TILE
-    static vector<int> bat_colours =
+    static vector<tileidx_t> bat_colours =
     {
         TILEP_MONS_VAMPIRE_BAT_GREEN,
         TILEP_MONS_VAMPIRE_BAT_ORANGE,
@@ -966,10 +968,11 @@ static bool _blorkula_bat_split(monster& blorkula, killer_type ktype)
     shuffle_array(bat_colours);
 #endif
 
+    bool is_vengeance_target = blorkula.is_vengeance_target();
     mon_enchant vengeance_target = blorkula.get_ench(ENCH_VENGEANCE_TARGET);
+    if (is_vengeance_target)
+        blorkula.del_ench(ENCH_VENGEANCE_TARGET, true, false);
     follower saved_blork = follower(blorkula);
-    if (vengeance_target.ench != ENCH_NONE)
-        saved_blork.mons.del_ench(ENCH_VENGEANCE_TARGET, true, false);
     bool placed_bat = false;
     for (int i = 0; i < num_bats; ++i)
     {
@@ -982,13 +985,13 @@ static bool _blorkula_bat_split(monster& blorkula, killer_type ktype)
         {
             bat->props[BLORKULA_REVIVAL_TIMER_KEY] = revive_timer;
 #ifdef USE_TILE
-            bat->props[MONSTER_TILE_KEY] = bat_colours[i];
+            bat->props[MONSTER_TILE_KEY] = (int)bat_colours[i];
 #endif
             saved_blork.write_to_prop(bat->props[SAVED_BLORKULA_KEY].get_vector());
             mons_add_blame(bat, "manifested out of " + blorkula.name(DESC_A, true));
             bat->flags |= (MF_NO_REWARD | MF_WAS_IN_VIEW);
             placed_bat = true;
-            if (vengeance_target.ench != ENCH_NONE)
+            if (is_vengeance_target)
             {
                 bat->add_ench(vengeance_target);
                 you.duration[DUR_BEOGH_SEEKING_VENGEANCE] += 1;
@@ -1018,7 +1021,7 @@ static monster* _retrieve_saved_blorkula(monster& bat)
 {
     follower saved_blork;
     saved_blork.read_from_prop(bat.props[SAVED_BLORKULA_KEY].get_vector());
-    const bool is_vengeance_target = bat.has_ench(ENCH_VENGEANCE_TARGET);
+    const bool is_vengeance_target = bat.is_vengeance_target();
     if (is_vengeance_target)
     {
         saved_blork.mons.add_ench(bat.get_ench(ENCH_VENGEANCE_TARGET));
@@ -1222,22 +1225,8 @@ void fire_monster_death_event(monster* mons,
                       mons->mid, killer));
     }
 
-    bool terrain_changed = false;
-
-    for (map_marker *mark : env.markers.get_all(MAT_TERRAIN_CHANGE))
-    {
-        map_terrain_change_marker *marker =
-                dynamic_cast<map_terrain_change_marker*>(mark);
-
-        if (marker->mon_num != 0 && monster_by_mid(marker->mon_num) == mons)
-        {
-            terrain_changed = true;
-            marker->duration = 0;
-        }
-    }
-
-    if (terrain_changed)
-        timeout_terrain_changes(0, true);
+    if (mons->type != MONS_HELLFIRE_MORTAR)
+        end_terrain_changes(*mons);
 
     if (killer == KILL_BANISHED)
         return;
@@ -1498,8 +1487,11 @@ static string _derived_undead_message(const monster &mons, monster_type which_z,
         return "The dead are flying!";
 
     const auto shape = get_mon_shape(mons);
-    if (shape == MON_SHAPE_SNAKE || shape == MON_SHAPE_SNAIL)
+    if (shape == MON_SHAPE_SNAKE || shape == MON_SHAPE_SNAIL
+        || shape == MON_SHAPE_NAGA)
+    {
         return "The dead are slithering!";
+    }
     if (shape == MON_SHAPE_ARACHNID || shape == MON_SHAPE_CENTIPEDE)
         return "The dead are crawling!"; // to say nothing of creeping
 
@@ -1935,16 +1927,7 @@ static void _cassandra_death_ambush()
 
 static bool _mons_reaped(actor &killer, monster& victim)
 {
-    beh_type beh;
-
-    if (killer.is_player())
-        beh     = BEH_FRIENDLY;
-    else
-    {
-        monster* mon = killer.as_monster();
-        beh = SAME_ATTITUDE(mon);
-    }
-
+    beh_type beh = SAME_ATTITUDE(&killer);
     string msg = victim.name(DESC_ITS) + " spirit is torn from " +
                      victim.pronoun(PRONOUN_POSSESSIVE) + " body!";
     string fail_msg = victim.name(DESC_ITS) + " spirit is momentarily torn from " +
@@ -2525,8 +2508,7 @@ item_def* monster_die(monster& mons, killer_type killer,
 
     const bool spectralised = testbits(mons.flags, MF_SPECTRALISED);
 
-    if (!silent && !mount_death
-        && _monster_avoided_death(&mons, killer, killer_index))
+    if (!mount_death && _monster_avoided_death(&mons, killer, killer_index))
     {
         mons.flags &= ~MF_EXPLODE_KILL;
 
@@ -2769,7 +2751,7 @@ item_def* monster_die(monster& mons, killer_type killer,
         coord_def aim;
         if (!invalid_monster_index(killer_index) && env.mons[killer_index].alive())
             aim = env.mons[killer_index].pos();
-        else if (killer_index == MHITYOU)
+        else if (YOU_KILL(killer))
             aim = you.pos();
 
         if (!aim.origin())
@@ -2841,6 +2823,11 @@ item_def* monster_die(monster& mons, killer_type killer,
     }
     else if (mons.type == MONS_ERYTHROSPITE && !mons.is_abjurable())
         bleed_onto_floor(mons.pos(), MONS_ERYTHROSPITE, 100, false);
+    else if (mons.type == MONS_ROYAL_JELLY && mons.hit_points > 0
+             && real_death && !summoned)
+    {
+        schedule_trj_spawn_fineff(&you, &mons, mons.pos(), mons.hit_points);
+    }
 
     if (mons.has_ench(ENCH_MAGNETISED))
     {
@@ -2989,6 +2976,9 @@ item_def* monster_die(monster& mons, killer_type killer,
                     "With a roar, the tentacle is hauled back through the portal!");
             }
             silent = true;
+            for (map_marker* mark : env.markers.get_markers_at(mons.pos(), MAT_MALIGN_GATEWAY))
+                if (dynamic_cast<map_malign_gateway_marker*>(mark)->tentacle == mons.mid)
+                    env.markers.remove(mark);
         }
     }
     else if (mons.type == MONS_DROWNED_SOUL)
@@ -3549,8 +3539,11 @@ item_def* monster_die(monster& mons, killer_type killer,
         return corpse;
     }
 
-    if (mons.has_ench(ENCH_VENGEANCE_TARGET))
+    if (mons.is_vengeance_target())
+    {
+        mons.del_ench(ENCH_VENGEANCE_TARGET);
         beogh_progress_vengeance();
+    }
 
     // If there are other duel targets alive (due to a slime splitting), don't
     // count this as winning the duel.
@@ -3729,6 +3722,11 @@ void monster_cleanup(monster* mons)
     if (mons->type == MONS_SEISMOSAURUS_EGG)
         for (distance_iterator di(mons->pos(), false, false, 4); di; ++di)
             env.pgrid(*di) &= ~FPROP_SEISMOROCK;
+    else if (mons->type == MONS_HELLFIRE_MORTAR && mons->summoner == MID_PLAYER)
+    {
+        const int dur = hellfire_mortar_cooldown_length(mons->props[HELLFIRE_PATH_KEY].get_vector().size());
+        you.duration[DUR_HELLFIRE_MORTAR_COOLDOWN] = dur;
+    }
 
     // May have been constricting something. No message because that depends
     // on the order in which things are cleaned up: If the constrictee is
@@ -3845,10 +3843,7 @@ void mons_check_pool(monster* mons, const coord_def &oldpos,
         killnum = mons->mindex();
     }
 
-    // Yredelemnul special, redux: It's the only one that can
-    // work on drowned monsters.
-    if (!_yred_bind_soul(mons, killer))
-        monster_die(*mons, killer, killnum, true);
+    monster_die(*mons, killer, killnum, true);
 }
 
 // Make all of the monster's original equipment disappear, unless it's a fixed

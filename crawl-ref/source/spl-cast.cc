@@ -1080,6 +1080,9 @@ spret cast_a_spell(bool check_range, spell_type spell, dist *_target,
         count_action(CACT_CAST, spell);
     }
 
+    if (you.duration[DUR_STAMPEDE] && you.has_mutation(MUT_EAST_WIND))
+        you.duration[DUR_STAMPEDE] += you.time_taken;
+
     finalize_mp_cost(hp_cost > 0);
     // Check if an HP payment brought us low enough
     // to trigger Celebrant or time-warped blood.
@@ -1571,7 +1574,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
 
     case SPELL_SPIKE_LAUNCHER:
     {
-        vector<coord_def> walls = find_spike_launcher_walls();
+        vector<coord_def> walls = find_spike_launcher_walls(you.pos());
         return make_unique<targeter_multiposition>(&you, walls, walls.size() > 1
                                                                     ? AFF_MAYBE
                                                                     : AFF_YES);
@@ -1650,6 +1653,9 @@ static int _to_hit_pct(const monster_info& mi, int acc)
         return 100;
 
     acc += mi.lighting_modifiers();
+    if (mi.is(MB_EXPOSED))
+        acc *= 2;
+
     if (acc <= 1)
         return mi.ev <= 2 ? 100 : 0;
 
@@ -2639,7 +2645,7 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
         return cast_clockwork_bee(beam.target, fail);
 
     case SPELL_SPIKE_LAUNCHER:
-        return cast_spike_launcher(powc, fail);
+        return cast_spike_launcher(you, powc, fail);
 
     case SPELL_DIAMOND_SAWBLADES:
         return cast_diamond_sawblades(powc, fail);
@@ -3466,6 +3472,9 @@ void handle_channelled_spell()
         stop_channelling_spells(true);
         return;
     }
+
+    if (you.duration[DUR_STAMPEDE] && you.has_mutation(MUT_EAST_WIND))
+        you.duration[DUR_STAMPEDE] += you.time_taken;
 
     switch (you.attribute[ATTR_CHANNELLED_SPELL])
     {

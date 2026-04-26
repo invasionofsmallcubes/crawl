@@ -2244,7 +2244,7 @@ void untransform(bool skip_move, bool scale_hp, bool preserve_equipment,
     else if (old_form == transformation::rime_yak)
     {
         you.duration[DUR_RIME_YAK_AURA] = 0;
-        end_terrain_change(TERRAIN_CHANGE_RIME_YAK);
+        end_terrain_changes(TERRAIN_CHANGE_RIME_YAK);
     }
     else if (old_form == transformation::werewolf)
         you.duration[DUR_WEREFURY] = 0;

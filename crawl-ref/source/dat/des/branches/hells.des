@@ -23,7 +23,7 @@ WEIGHT:  1
 # Terrain includes zot traps, and per-hell clouds, liquid, statues.
 NSUBST:  . = 2:1 / 1:0 / 2:9 / 4 = 0:3 1:1 / 1 = 9:6 / 2:1 / *:.
 NSUBST:  . = 1:^ / 1:^~ / 1:F~ / 4 = F~~ / 1:{ / 1:} / *:.
-KFEAT:   ^ = zot trap
+KFEAT:   ^ = trap_zot
 : if you.in_branch("Geh") then
 MONS:    zombie / draugr
 MONS:    brimstone fiend / oni incarcerator
@@ -338,7 +338,7 @@ ENDMAP
 NAME:  nicolae_hells_seeping_fissure
 TAGS:  transparent luniq allow_dup no_monster_gen
 DEPTH: Dis, !Dis:$, Geh, !Geh:$, Coc, !Coc:$, Tar, !Tar:$
-KFEAT: ^ = shaft trap
+KFEAT: ^ = shaft
 {{
   if is_validating() then return end
   local cloudtypes =

@@ -610,14 +610,14 @@ void win_apostle_challenge(monster& apostle)
     apostle.del_ench(ENCH_TOUCH_OF_BEOGH);
 
     // Count as having gotten vengeance, even though the target isn't 'dead'
-    if (apostle.has_ench(ENCH_VENGEANCE_TARGET))
+    if (apostle.is_vengeance_target())
     {
         apostle.del_ench(ENCH_VENGEANCE_TARGET);
         beogh_progress_vengeance();
     }
 
     apostle.hit_points = apostle.max_hit_points;
-    apostle.timeout_enchantments();
+    apostle.timeout_enchantments(10000, true);
     apostle.attitude = ATT_GOOD_NEUTRAL;
     mons_att_changed(&apostle);
     apostle.stop_constricting_all();
@@ -662,6 +662,17 @@ void win_apostle_challenge(monster& apostle)
             simple_monster_message(**mi, " is recalled by Beogh.");
             monster_die(**mi, KILL_RESET, -1, true);
         }
+    }
+
+    // In the rare case the apostle has died over lava, move it somewhere safe.
+    // XXX: This is technically not guaranteed to find anywhere to put it, in
+    //      which case we leave it where it is. This should be almost impossible
+    //      to encounter in practice.
+    if (!monster_habitable_grid(&apostle, apostle.pos()))
+    {
+        coord_def spot;
+        if (find_habitable_spot_near(apostle.pos(), MONS_ORC_APOSTLE, LOS_RADIUS, spot))
+            apostle.move_to(spot, MV_INTERNAL);
     }
 }
 
@@ -895,10 +906,6 @@ bool apostle_has_unique_name(const monster& apostle)
 
 void beogh_swear_vengeance(const monster& apostle)
 {
-    bool already_avenging = you.duration[DUR_BEOGH_SEEKING_VENGEANCE];
-    if (!already_avenging)
-        you.props[BEOGH_VENGEANCE_NUM_KEY].get_int() += 1;
-
     bool new_targets = false;
 
     // To keep track of which monsters correspond to which period of avenging
@@ -913,9 +920,10 @@ void beogh_swear_vengeance(const monster& apostle)
             // prevents marking frenzied apostles
             && mon->attitude != ATT_FRIENDLY
             && !mon->is_summoned() && !mon->is_peripheral()
-            && !mon->has_ench(ENCH_VENGEANCE_TARGET))
+            && !mon->is_vengeance_target())
         {
             you.duration[DUR_BEOGH_SEEKING_VENGEANCE] += 1;
+            mon->del_ench(ENCH_VENGEANCE_TARGET);
             mon->add_ench(mon_enchant(ENCH_VENGEANCE_TARGET, &you, INFINITE_DURATION, vengeance_num));
             mon->patrol_point = apostle.pos();
             new_targets = true;
@@ -936,7 +944,7 @@ void beogh_swear_vengeance(const monster& apostle)
     // If an apostle dies with no visible enemy to mark, and you are not already
     // avenging a different dead, give the bonus progress immediately (otherwise
     // the player may never receive it)
-    if (new_targets || already_avenging)
+    if (you.duration[DUR_BEOGH_SEEKING_VENGEANCE])
         a.vengeance_bonus = cost * 2 / 3;
     else
         you.props[BEOGH_RES_PIETY_GAINED_KEY].get_int() += (cost * 2 / 3);
@@ -954,6 +962,16 @@ void beogh_follower_banished(monster& apostle)
     remove_companion(&apostle);
 }
 
+static void _beogh_end_vengeance()
+{
+    you.duration[DUR_BEOGH_SEEKING_VENGEANCE] = 0;
+    // Mark any current vengeance targets as invalid
+    you.props[BEOGH_VENGEANCE_NUM_KEY].get_int() += 1;
+    // Make sure any monsters that were seeking vengeance have their
+    // patrol_point reset
+    add_daction(DACT_BEOGH_VENGEANCE_CLEANUP);
+}
+
 void beogh_progress_vengeance()
 {
     ASSERT(you.duration[DUR_BEOGH_SEEKING_VENGEANCE]);
@@ -967,9 +985,7 @@ void beogh_progress_vengeance()
         // splitting (and probably some other methods of cloning) can result in
         // more monsters being marked in total than were marked originally,
         // and subsequently killing one of them will assert.
-        for (monster_iterator mi; mi; ++mi)
-            mi->del_ench(ENCH_VENGEANCE_TARGET);
-        add_daction(DACT_BEOGH_VENGEANCE_CLEANUP);
+        _beogh_end_vengeance();
 
         // Calculate total vengeance bonus and apply it
         int bonus = 0;
@@ -1076,12 +1092,8 @@ void beogh_resurrect_followers(bool end_ostracism_only)
     you.props.erase(BEOGH_RES_PIETY_NEEDED_KEY);
 
     // End vengeance statuses (in case we revived companions without finishing them)
-    you.duration[DUR_BEOGH_SEEKING_VENGEANCE] = 0;
-    add_daction(DACT_BEOGH_VENGEANCE_CLEANUP);
-
-    // Increment how many times vengeance has been declared (so that the daction
-    // will only clean up past marks and not future ones)
-    you.props[BEOGH_VENGEANCE_NUM_KEY].get_int() += 1;
+    if (you.duration[DUR_BEOGH_SEEKING_VENGEANCE])
+        _beogh_end_vengeance();
 }
 
 bool tile_has_valid_bfb_corpse(const coord_def pos)

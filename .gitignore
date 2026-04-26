@@ -6,3 +6,9 @@
 *.sublime-workspace
 *.sublime-project
 games.d/
+
+# Per-clone Claude Code project notes
+CLAUDE.md
+
+# Stray top-level copy of crawl-ref/source/library_dcss.js (build leftover)
+/library_dcss.js

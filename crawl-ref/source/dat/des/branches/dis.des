@@ -527,7 +527,7 @@ ORIENT:  encompass
 MONS:    ancient champion / war gargoyle / hellion / tormentor / \
          crystal echidna w:2
 MONS:    ancient lich / dread lich / hell sentinel / iron giant / juggernaut
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 NSUBST:  > = 1 = { / 1 = } / 2 = >:1 .:49 / *:.
 # Always place at least one door per room, possibly wider or multiplied.
 # Variation provided across either half of the vault and per-room.

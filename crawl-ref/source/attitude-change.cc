@@ -89,7 +89,7 @@ void beogh_follower_convert(monster* mons, bool orc_hit)
         || mons->has_ench(ENCH_FIRE_CHAMPION)
         || mons->flags & MF_APOSTLE_BAND
         // If marked for vengeance, only deathbed conversion.
-        || (mons->has_ench(ENCH_VENGEANCE_TARGET) && !deathbed))
+        || (mons->is_vengeance_target() && !deathbed))
     {
         return;
     }
@@ -105,8 +105,8 @@ void beogh_follower_convert(monster* mons, bool orc_hit)
         conv_t ctype = conv_t::sight;
         if (deathbed)
         {
-            ctype = mons->has_ench(ENCH_VENGEANCE_TARGET) ? conv_t::vengeance
-                                                          : conv_t::deathbed;
+            ctype = mons->is_vengeance_target() ? conv_t::vengeance
+                                                : conv_t::deathbed;
         }
 
         beogh_convert_orc(mons, ctype);
@@ -215,7 +215,7 @@ void beogh_convert_orc(monster* orc, conv_t conv)
     }
 
     // Count as having gotten vengeance.
-    if (orc->has_ench(ENCH_VENGEANCE_TARGET))
+    if (orc->is_vengeance_target())
     {
         orc->del_ench(ENCH_VENGEANCE_TARGET);
         beogh_progress_vengeance();

@@ -1655,7 +1655,7 @@ void game_options::reset_options()
           ABIL_CHEIBRIADOS_SLOUCH, ABIL_QAZLAL_DISASTER_AREA,
           ABIL_RU_APOCALYPSE, ABIL_LUGONU_CORRUPT, ABIL_IGNIS_FOXFIRE,
           ABIL_SIPHON_ESSENCE, ABIL_DITHMENOS_SHADOWSLIP,
-          ABIL_WATERY_GRAVE };
+          ABIL_WATERY_GRAVE, ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER };
     always_use_static_ability_targeters = false;
 
     force_scroll_targeter =

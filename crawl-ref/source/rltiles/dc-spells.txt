@@ -274,7 +274,6 @@ launch_sporangium LAUNCH_SPORANGIUM
 magma_barrage MAGMA_BARRAGE
 malmutate MALMUTATE
 march_of_sorrows MARCH_OF_SORROWS
-mass_regeneration MASS_REGENERATION
 mesmerise MESMERISE
 metal_splinters METAL_SPLINTERS
 miasma_breath MIASMA_BREATH
@@ -373,6 +372,7 @@ funeral_dirge FUNERAL_DIRGE
 injury_mirror INJURY_MIRROR
 legendary_destruction LEGENDARY_DESTRUCTION
 malign_offering MALIGN_OFFERING
+mass_regeneration MASS_REGENERATION
 prayer_of_brilliance PRAYER_OF_BRILLIANCE
 regeneration REGENERATION
 sap_magic SAP_MAGIC

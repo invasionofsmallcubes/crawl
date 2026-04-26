@@ -528,15 +528,8 @@ bool is_travelsafe_square(const coord_def& c, bool ignore_hostile,
     if (!_is_safe_cloud(c) && !try_fallback)
         return false;
 
-    if (is_trap(c))
-    {
-        trap_def trap;
-        trap.pos = c;
-        trap.type = env.map_knowledge(c).trap();
-        trap.ammo_qty = 1;
-        if (trap.is_safe())
-            return true;
-    }
+    if (feat_is_trap(env.map_knowledge(c).feat()) && trap_is_safe(env.map_knowledge(c).feat()))
+        return true;
 
     if (grid == DNGN_BINDING_SIGIL && !you.is_binding_sigil_immune())
         return false;
@@ -565,7 +558,7 @@ static bool _is_safe_move(const coord_def& c)
         //    should have been aborted already by the checks in view.cc.
     }
 
-    if (is_trap(c) && !trap_at(c)->is_safe())
+    if (feat_is_trap(env.grid(c)) && !trap_is_safe(env.grid(c)))
         return false;
 
     return _is_safe_cloud(c);
@@ -1660,7 +1653,8 @@ void travel_pathfind::check_square_greed(const coord_def &c)
 
 bool travel_pathfind::path_flood(const coord_def &c, const coord_def &dc)
 {
-    if (!in_bounds(dc) || unreachables.count(dc))
+    // Squares outside the map cannot be explored or moved to.
+    if (!map_bounds(dc) || unreachables.count(dc))
         return false;
 
     if (floodout
@@ -1723,8 +1717,11 @@ bool travel_pathfind::path_flood(const coord_def &c, const coord_def &dc)
                     {
                         const coord_def ddc = dc + Compass[dir];
 
-                        if (feat_is_wall(env.map_knowledge(ddc).feat()))
+                        if (map_bounds(ddc)
+                            && feat_is_wall(env.map_knowledge(ddc).feat()))
+                        {
                             dist -= Options.explore_wall_bias;
+                        }
                     }
 
                     if (Options.explore_wall_bias < 0 &&
@@ -1776,6 +1773,10 @@ bool travel_pathfind::path_flood(const coord_def &c, const coord_def &dc)
         if (unexplored_dist != UNFOUND_DIST && greedy_dist != UNFOUND_DIST)
             return true;
     }
+
+    // Don't consider moving to squares outside the playable area.
+    if (!in_bounds(dc))
+        return false;
 
     // We don't want to follow the transporter at c if it's excluded. We also
     // don't want to update point_distance for the destination based on

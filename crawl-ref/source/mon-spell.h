@@ -191,8 +191,8 @@ static const mon_spellbook mspell_list[] =
     // ('f') Mobile plants and fungi.
     {  MST_THORN_HUNTER,
       {
-       { SPELL_THORN_VOLLEY, 43, MON_SPELL_NATURAL },
-       { SPELL_WALL_OF_BRAMBLES, 22, MON_SPELL_MAGICAL },
+       { SPELL_THORN_VOLLEY, 50, MON_SPELL_NATURAL },
+       { SPELL_CAGE_OF_BRAMBLES, 80, MON_SPELL_NATURAL },
       }
     },
 
@@ -1644,8 +1644,8 @@ static const mon_spellbook mspell_list[] =
     // ('3') Common demons.
     {  MST_YNOXINUL,
       {
-       { SPELL_IRON_SHOT, 19, MON_SPELL_MAGICAL },
-       { SPELL_SUMMON_UFETUBUS, 38, MON_SPELL_MAGICAL },
+       { SPELL_IRON_SHOT, 22, MON_SPELL_MAGICAL },
+       { SPELL_UFETUBI_SWARM, 50, MON_SPELL_MAGICAL },
       }
     },
 
@@ -2421,6 +2421,7 @@ static const mon_spellbook mspell_list[] =
        { SPELL_GHOSTLY_FIREBALL, 24, MON_SPELL_WIZARD },
        { SPELL_BIND_SOULS, 24, MON_SPELL_WIZARD },
        { SPELL_FLASH_FREEZE, 12, MON_SPELL_WIZARD },
+       { SPELL_DOMINATE_UNDEAD, 16, MON_SPELL_WIZARD },
       }
     },
 

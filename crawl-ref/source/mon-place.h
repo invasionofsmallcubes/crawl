@@ -17,7 +17,6 @@
 #include "monster-type.h"
 #include "spell-type.h"
 #include "tag-version.h"
-#include "trap-type.h"
 
 using std::vector;
 

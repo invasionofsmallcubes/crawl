@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Crawl Stone Soup — WebAssembly</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+      background: #0a0a0a;
+      color: #c0c0c0;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      gap: 32px;
+  }
+
+  header { text-align: center; }
+
+  h1 {
+      font-size: clamp(1.4rem, 5vw, 2.2rem);
+      color: #f0d060;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 12px #a08020;
+  }
+
+  .subtitle {
+      margin-top: 6px;
+      color: #666;
+      font-size: 0.85rem;
+  }
+
+  .cards {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 560px;
+  }
+
+  .card {
+      flex: 1 1 220px;
+      background: #141414;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-decoration: none;
+      color: inherit;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+  }
+  .card:hover, .card:focus {
+      border-color: #556;
+      background: #1a1a22;
+      outline: none;
+  }
+  .card:active {
+      background: #1e1e2a;
+  }
+
+  .card-title {
+      font-size: 1.2rem;
+      color: #8cf;
+  }
+
+  .card-mode {
+      font-size: 0.75rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+  }
+
+  .card-desc {
+      font-size: 0.82rem;
+      color: #888;
+      line-height: 1.5;
+      flex: 1;
+  }
+
+  .card-size {
+      font-size: 0.75rem;
+      color: #555;
+      border-top: 1px solid #222;
+      padding-top: 8px;
+      margin-top: 4px;
+  }
+
+  .card-play {
+      display: inline-block;
+      background: #1a2e1a;
+      color: #7f7;
+      border: 1px solid #3a5a3a;
+      border-radius: 5px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      text-align: center;
+      cursor: pointer;
+      touch-action: manipulation;
+  }
+  .card:hover .card-play {
+      background: #203820;
+      border-color: #4a7a4a;
+  }
+
+  /* VKB toggle row */
+  .vkb-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.88rem;
+      color: #888;
+  }
+
+  /* Toggle switch */
+  .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+  }
+  .switch input { display: none; }
+  .slider {
+      position: absolute;
+      inset: 0;
+      background: #333;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+      touch-action: manipulation;
+  }
+  .slider::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: #888;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+  }
+  .switch input:checked + .slider { background: #2a5a2a; }
+  .switch input:checked + .slider::before {
+      transform: translateX(20px);
+      background: #7f7;
+  }
+
+  footer {
+      color: #444;
+      font-size: 0.72rem;
+      text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dungeon Crawl Stone Soup</h1>
+  <p class="subtitle">WebAssembly port — choose your version</p>
+</header>
+
+<div class="cards">
+  <a class="card" id="card-ascii" href="ascii.html" tabindex="0">
+    <div class="card-mode">ASCII · Terminal</div>
+    <div class="card-title">Classic</div>
+    <div class="card-desc">
+      Full DCSS experience rendered in a terminal. Fast load,
+      works on any device with a keyboard.
+    </div>
+    <div class="card-size">~5 MB download</div>
+    <div class="card-play">Play ASCII →</div>
+  </a>
+
+  <a class="card" id="card-tiles" href="tiles.html" tabindex="0">
+    <div class="card-mode">Tiles · Graphics</div>
+    <div class="card-title">Tiles</div>
+    <div class="card-desc">
+      Sprite-based graphics via SDL2 and WebGL.
+      Dungeon, HUD, and menus rendered with tiles.
+    </div>
+    <div class="card-size">~55 MB download</div>
+    <div class="card-play">Play Tiles →</div>
+  </a>
+</div>
+
+<div class="vkb-row">
+  <label class="switch" title="Adds an on-screen d-pad and action buttons for touch devices">
+    <input type="checkbox" id="vkb-check">
+    <span class="slider"></span>
+  </label>
+  <span>Virtual keyboard <span style="color:#555">(for mobile / touchscreen)</span></span>
+</div>
+
+<footer>
+  Dungeon Crawl Stone Soup is open-source.<br>
+  This WASM port runs entirely in your browser — no server needed.
+</footer>
+
+<script>
+(function () {
+    var check = document.getElementById('vkb-check');
+
+    // Restore preference from localStorage.
+    var stored;
+    try { stored = localStorage.getItem('vkb-enabled'); } catch (e) {}
+    if (stored === '1') check.checked = true;
+
+    check.addEventListener('change', function () {
+        try { localStorage.setItem('vkb-enabled', check.checked ? '1' : '0'); } catch (e) {}
+        updateLinks();
+    });
+
+    function updateLinks() {
+        var vkb = check.checked ? '?vkb=1' : '';
+        document.getElementById('card-ascii').href = 'ascii.html' + vkb;
+        document.getElementById('card-tiles').href = 'tiles.html' + vkb;
+    }
+
+    updateLinks();
+}());
+</script>
+
+</body>
+</html>

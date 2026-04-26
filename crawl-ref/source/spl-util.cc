@@ -1398,7 +1398,7 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
         break;
 
     case SPELL_MALIGN_GATEWAY:
-        if (temp && !can_cast_malign_gateway())
+        if (temp && !can_cast_malign_gateway(you))
         {
             return "the dungeon can only cope with one malign gateway"
                     " at a time.";
@@ -1658,8 +1658,7 @@ bool spell_no_hostile_in_range(spell_type spell)
     case SPELL_APPORTATION:
     case SPELL_PASSWALL:
     case SPELL_GOLUBRIAS_PASSAGE:
-    // case SPELL_LRD: // TODO: LRD logic here is a bit confusing, it should error
-    //                 // now that it doesn't destroy walls
+    case SPELL_LRD:
     case SPELL_FULMINANT_PRISM:
     case SPELL_FORGE_LIGHTNING_SPIRE:
     case SPELL_NOXIOUS_BOG:
@@ -1793,7 +1792,7 @@ bool spell_no_hostile_in_range(spell_type spell)
         return permafrost_targets(you, false).empty();
 
     case SPELL_PLASMA_BEAM:
-        return plasma_beam_targets(you, pow, false).empty();
+        return cast_plasma_beam(-1, you, false, true) == spret::abort;
 
     default:
         break;

@@ -224,7 +224,7 @@ public:
 
     void apply_enchantments();
 
-    void timeout_enchantments(int time = 100000);
+    void timeout_enchantments(int time = 100000, bool no_drowning = false);
 
     bool is_travelling() const;
     bool is_patrolling() const;
@@ -457,9 +457,6 @@ public:
     bool trap_in_net(bool real, bool quiet = false) override;
     void stop_being_caught(bool drop_net = false) override;
 
-    bool friendly() const;
-    bool neutral() const;
-    bool good_neutral() const;
     bool wont_attack() const override;
     bool pacified() const;
 
@@ -505,7 +502,8 @@ public:
              string source = "",
              string aux = "",
              bool cleanup_dead = true,
-             bool attacker_effects = true) override;
+             bool attacker_effects = true,
+             bool is_attack_damage = false) override;
     bool heal(int amount) override;
     void blame_damage(const actor *attacker, int amount);
     void blink(bool ignore_stasis = false) override;
@@ -582,6 +580,8 @@ public:
     bool is_band_leader_of(const monster& follower) const;
     monster* get_band_leader() const;
     void set_band_leader(const monster& leader);
+
+    bool is_vengeance_target() const;
 
 private:
     int hit_dice;

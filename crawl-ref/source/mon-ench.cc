@@ -24,6 +24,7 @@
 #include "fight.h"
 #include "hints.h"
 #include "god-abil.h"
+#include "god-companions.h"
 #include "item-status-flag-type.h"
 #include "items.h"
 #include "libutil.h"
@@ -376,6 +377,16 @@ void monster::add_enchantment_effect(const mon_enchant &ench, bool quiet)
 
     default:
         break;
+    }
+
+    if (ench.who == KC_YOU && you.unrand_equipped(UNRAND_SWAMP_WITCH_SCALES) &&
+        ench_triggers_trickster(ench.ench))
+    {
+        // 4 levels for rPois0 or rPois-, 1 level for rPois, or 0 further up.
+        // Gets pretty message spammy with mass effects if we actually printed
+        // any messages in poisoning others, alas.
+        int pois = res_poison() > 2 ? 0 : res_poison() == 1 ? 1 : 4;
+        poison_monster(this, &you, pois, true);
     }
 }
 
@@ -1066,6 +1077,11 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         monster_die(*this, KILL_TIMEOUT, NON_MONSTER);
         break;
 
+    case ENCH_EXPOSED:
+        if (!quiet)
+            simple_monster_message(*this, " is no longer exposed.");
+        break;
+
     default:
         break;
     }
@@ -1221,16 +1237,13 @@ static void _merfolk_avatar_song(monster* mons)
     // First, attempt to pull the player, if mesmerised
     if (you.beheld_by(*mons) && coinflip())
     {
-        // Don't pull the player if they walked forward voluntarily this
-        // turn (to avoid making you jump two spaces at once)
-        if (!mons->props[FOE_APPROACHING_KEY].get_bool())
-        {
-            _merfolk_avatar_movement_effect(mons);
+        const int dist_change = grid_distance(you.pos(), mons->pos())
+                                - grid_distance(you.pos_at_turn_start, mons->pos());
 
-            // Reset foe tracking position so that we won't automatically
-            // veto pulling on a subsequent turn because you 'approached'
-            mons->props[FAUX_PAS_KEY].get_coord() = you.pos();
-        }
+        // Don't pull the player if they already moved closer to use this turn
+        // (to avoid making you jump two spaces at once)
+        if (dist_change >= 0)
+            _merfolk_avatar_movement_effect(mons);
     }
 
     // Only call up drowned souls if we're largely alone; otherwise our
@@ -1342,7 +1355,7 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_DUMB:
     case ENCH_MAD:
     case ENCH_WRETCHED:
-    case ENCH_SCREAMED:
+    case ENCH_ABILITY_COOLDOWN:
     case ENCH_WEAK:
     case ENCH_FIRE_VULN:
     case ENCH_BARBS:
@@ -1387,6 +1400,8 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_MIRROR_DAMAGE:
     case ENCH_DRAINED:
     case ENCH_SUNDER_CHARGE:
+    case ENCH_EXPOSED:
+    case ENCH_BRAMBLE_COOLDOWN:
         decay_enchantment(en);
         break;
 
@@ -1512,31 +1527,6 @@ void monster::apply_enchantment(const mon_enchant &me)
                 add_ench(ENCH_EXPLODING);
         }
 
-    }
-    break;
-
-    case ENCH_PORTAL_TIMER:
-    {
-        if (decay_enchantment(en))
-        {
-            coord_def base_position = props[BASE_POSITION_KEY].get_coord();
-            // Do a thing.
-            if (you.see_cell(base_position))
-                mprf("The portal closes; %s is severed.", name(DESC_THE).c_str());
-
-            if (env.grid(base_position) == DNGN_MALIGN_GATEWAY)
-                env.grid(base_position) = DNGN_FLOOR;
-
-            maybe_bloodify_square(base_position);
-            add_ench(ENCH_SEVERED);
-
-            // Severed tentacles immediately become "hostile" to everyone
-            // (or frenzied)
-            attitude = ATT_NEUTRAL;
-            mons_att_changed(this);
-            if (!crawl_state.game_is_arena())
-                behaviour_event(this, ME_ALERT);
-        }
     }
     break;
 
@@ -1986,6 +1976,20 @@ void monster::apply_enchantments()
             apply_enchantment(enchantments.find(static_cast<enchant_type>(i))->second);
 }
 
+bool monster::is_vengeance_target() const
+{
+    if (!has_ench(ENCH_VENGEANCE_TARGET))
+        return false;
+    // When entering a level, old vengeance will be removed from monsters by a
+    // daction. However, it is possible for a monster to die before that runs
+    // (e.g. from an earlier daction to clean up Pikel minions) and killing a
+    // monster that is a vengeance target while not under penance results in a
+    // crash, so don't count a monster as a vengeance target if it was set by
+    // an old vengeance.
+    return get_ench(ENCH_VENGEANCE_TARGET).degree
+           == you.props[BEOGH_VENGEANCE_NUM_KEY].get_int();
+}
+
 // Used to adjust time durations in calc_duration() for monster speed.
 static inline int _mod_speed(int val, int speed)
 {
@@ -2032,9 +2036,9 @@ static const char *enchant_names[] =
     "swift", "tide",
     "frenzied", "silenced", "awaken_forest", "exploding",
 #if TAG_MAJOR_VERSION == 34
-    "bleeding",
+    "bleeding", "tethered",
 #endif
-    "tethered", "severed", "antimagic",
+    "severed", "antimagic",
 #if TAG_MAJOR_VERSION == 34
     "fading_away", "preparing_resurrect",
 #endif
@@ -2064,7 +2068,7 @@ static const char *enchant_names[] =
 #if TAG_MAJOR_VERSION == 34
     "ozocubus_armour",
 #endif
-    "wretched", "screamed", "rune_of_recall",
+    "wretched", "ability_cooldown", "rune_of_recall",
     "injury bond",
 #if TAG_MAJOR_VERSION == 34
     "drowning",
@@ -2149,6 +2153,8 @@ static const char *enchant_names[] =
     "vampire_thrall", "pyrrhic_recollection", "clockwork_bee_cast",
     "phalanx_barrier", "figment", "paradox-touched", "warding",
     "diminished_spells", "orb_cooldown", "sunder_charge",
+    "exposed",
+    "briar_cooldown",
     "buggy", // NUM_ENCHANTMENTS
 };
 
@@ -2357,10 +2363,6 @@ int mon_enchant::calc_duration(const monster* mons,
     case ENCH_BREATH_WEAPON:
         // Must be set by creature.
         return 0;
-
-    case ENCH_PORTAL_TIMER:
-        cturn = 30 * 10 / _mod_speed(10, mons->speed);
-        break;
 
     case ENCH_SUMMON_TIMER:
         // The duration is:

@@ -1385,7 +1385,7 @@ Summon Tzitzimitl spell
 
 召唤一个蚀日星髅，一个疾病和绝望的恶魔。
 %%%%
-Summon Ufetubus spell
+Ufetubi Swarm spell
 
 召唤多个尖喙魔；小而恼人的恶魔。
 %%%%
@@ -1503,12 +1503,6 @@ Vitrifying Gaze spell
 Volley of Thorns spell
 
 射出一小束锋利的荆棘。
-%%%%
-Wall of Brambles spell
-
-使附近荆棘迅速生长。它们几乎没有结构性力量，
-但它们上面的恶刺使它们很难被清除。
-这种荆棘是稀疏的，几乎任何飞弹都可以穿过它们。
 %%%%
 Warning Cry spell
 

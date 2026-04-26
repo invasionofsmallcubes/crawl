@@ -89,8 +89,7 @@ static void _mons_summon_monster_illusion(monster* caster,
     // If a charmed caster creates a clone from a regular hostile,
     // the clone should still be friendly.
     if (monster *clone = clone_mons(foe, true, &cloning_visible,
-                                    caster->friendly() ?
-                                    ATT_FRIENDLY : caster->attitude))
+                                    caster->temp_attitude()))
     {
         const string clone_id = _monster_clone_id_for(foe);
         clone->props[CLONE_REPLICA_KEY] = clone_id;
@@ -359,7 +358,7 @@ monster* clone_mons(const monster* orig, bool quiet, bool* obvious,
     if (mons->has_ench(ENCH_TOUCH_OF_BEOGH))
         mons->del_ench(ENCH_TOUCH_OF_BEOGH);
 
-    if (mons->has_ench(ENCH_VENGEANCE_TARGET))
+    if (mons->is_vengeance_target())
         you.duration[DUR_BEOGH_SEEKING_VENGEANCE] += 1;
 
     // Duplicate objects, or unequip them if they can't be duplicated.

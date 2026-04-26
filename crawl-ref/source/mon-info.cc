@@ -89,7 +89,6 @@ static map<enchant_type, monster_info_flags> trivial_ench_mb_mappings = {
     { ENCH_BREATH_WEAPON,   MB_BREATH_WEAPON },
     { ENCH_ROLLING,         MB_ROLLING },
     { ENCH_WRETCHED,        MB_WRETCHED },
-    { ENCH_SCREAMED,        MB_SCREAMED },
     { ENCH_WORD_OF_RECALL,  MB_WORD_OF_RECALL },
     { ENCH_INJURY_BOND,     MB_INJURY_BOND },
     { ENCH_FLAYED,          MB_FLAYED },
@@ -152,6 +151,7 @@ static map<enchant_type, monster_info_flags> trivial_ench_mb_mappings = {
     { ENCH_PARADOX_TOUCHED, MB_PARADOX },
     { ENCH_WARDING,         MB_WARDING },
     { ENCH_DIMINISHED_SPELLS, MB_DIMINISHED_SPELLS },
+    { ENCH_EXPOSED,         MB_EXPOSED },
 };
 
 static monster_info_flags ench_to_mb(const monster& mons, enchant_type ench)
@@ -254,7 +254,8 @@ static bool _is_public_key(string key)
      || key == VAULT_HD_KEY
      || key == POLY_SET_KEY
      || key == NOBODY_MEMORIES_KEY
-     || key == ORIGINAL_TYPE_KEY)
+     || key == ORIGINAL_TYPE_KEY
+     || key == SPLINTERFROST_POWER_KEY)
     {
         return true;
     }
@@ -591,6 +592,7 @@ monster_info::monster_info(const monster* m, int milev)
     menergy = mons_energy(*m);
     can_go_frenzy = m->can_go_frenzy();
     can_feel_fear = m->can_feel_fear(false);
+    can_shoot_through_monster = shoot_through_actor(&you, m);
     sleepwalking = m->sleepwalking();
     backlit = m->backlit(false);
     umbraed = m->umbra();

@@ -419,6 +419,7 @@ KITEM:    b = any weapon level:27 pre_id /\
           great mace plus:1 pre_id /\
           demon whip plus:1 pre_id w:5 /\
           giant spiked club plus:1 pre_id /\
+          athame plus:3 pre_id /\
           quick blade plus:3 pre_id /\
           great sword plus:1 pre_id /\
           double sword plus:1 pre_id /\

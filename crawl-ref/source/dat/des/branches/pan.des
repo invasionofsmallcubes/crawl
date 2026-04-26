@@ -2450,7 +2450,7 @@ KMONS:  p = human / elf / dwarf ; nothing / kobold ; nothing / mummy / \
             revenant / tengu ; nothing / merfolk ; nothing / poltergeist / \
             felid / octopode ; nothing / djinni ; nothing / \
             gargoyle ; nothing / formicid ; nothing / vine stalker ; nothing / \
-            barachi ; nothing / gnoll ; nothing / armataur ; nothing / \
+            barachi ; nothing / gnoll ; nothing / centaur ; nothing / \
             oni ; nothing / goblin ; nothing
 NSUBST: t = 10:p / *:', b = 10:p / *:'
 KPROP:  p' = no_tele_into
@@ -3253,7 +3253,7 @@ ENDMAP
 ##################################
 NAME:   reaverb_pan_chaos_star
 TAGS:   extra transparent pandec
-KFEAT:  ^ = devourer's trap
+KFEAT:  ^ = trap_devourer
 MAP
         ...
  ....  ..x..  ....
@@ -3872,7 +3872,7 @@ SHUFFLE: Aai/Bbj/Cck/Ddl/Eem/Ffn/Ggo/Hhp, Ffn/Qqr/Qqr, Ggo/Sst/Sst
 SHUFFLE: Hhp/Uuv/Uuv
 SUBST:   ABCDFGHijklnop = x, abcdfgh = -, EQSU = @, emqrstuv = .
 SUBST:   I : x., J : x., K : x., L: x., M: x., N : x.
-KFEAT:   - = transit_pandemonium w:36 / permanent teleport trap w:1 / \
+KFEAT:   - = transit_pandemonium w:36 / trap_teleport_permanent w:1 / \
              exit_pandemonium w:1 / exit_through_abyss w:1
 MAP
     xxxAxxx
@@ -4176,7 +4176,7 @@ ENDMAP
 
 NAME:    regret_index_pan_divided_teeth
 TAGS:    transparent allow_dup extra pandec
-KFEAT:   ^ : alarm trap / dispersal trap
+KFEAT:   ^ : trap_alarm / trap_dispersal
 SHUFFLE: ABCDEFHI
 SUBST:   A : cccxxxxYG^..., B : x.., C : x.., DEFHI = .
 SUBST:   c : cxx, - : xx+, ? : xx+, ! : xx+

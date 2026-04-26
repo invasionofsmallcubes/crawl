@@ -61,7 +61,7 @@
 
    function shopcontents(s)
       local i = {}
-      if s == "A" then i = { "arbalest", "book of air",
+      if s == "A" then i = { "arbalest", "athame", "book of air",
        "manual of air magic", "manual of alchemy", "book of annihilations",
        "potion of ambrosia", "scroll of acquirement q:1",
        "scroll of amnesia", "staff of air", "staff of alchemy",

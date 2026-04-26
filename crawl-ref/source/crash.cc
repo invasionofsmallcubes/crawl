@@ -17,8 +17,8 @@
 
 #ifdef USE_UNIX_SIGNALS
 #include <sys/time.h>
-#include <csignal>
 #endif
+#include <csignal>
 
 
 #ifndef TARGET_OS_WINDOWS
@@ -32,7 +32,8 @@
     defined(TARGET_OS_NETBSD) || \
     defined(TARGET_OS_OPENBSD) || \
     defined(TARGET_COMPILER_CYGWIN) || \
-    defined(__ANDROID__)
+    defined(__ANDROID__) || \
+    defined(__EMSCRIPTEN__)
         #undef BACKTRACE_SUPPORTED
 #endif
 #endif
@@ -43,7 +44,8 @@
 
 #if !defined(TARGET_OS_MACOSX) && \
     !defined(TARGET_OS_WINDOWS) && \
-    !defined(TARGET_COMPILER_CYGWIN)
+    !defined(TARGET_COMPILER_CYGWIN) && \
+    !defined(__EMSCRIPTEN__)
 #include <execinfo.h>
 #endif
 
@@ -72,7 +74,7 @@ template <typename TO, typename FROM> TO nasty_cast(FROM f)
 #endif // BACKTRACE_SUPPORTED
 
 // Support Yama LSM ptrace restrictions
-#ifdef TARGET_OS_LINUX
+#if defined(TARGET_OS_LINUX) && !defined(__EMSCRIPTEN__)
 #   include <sys/prctl.h>
 #   ifndef PR_SET_PTRACER
 #       define PR_SET_PTRACER 0x59616d61
@@ -94,14 +96,11 @@ template <typename TO, typename FROM> TO nasty_cast(FROM f)
 /////////////////////////////////////////////////////////////////////////////
 // Code for printing out debugging info on a crash.
 ////////////////////////////////////////////////////////////////////////////
-#ifdef USE_UNIX_SIGNALS
 static int _crash_signal    = 0;
 static int _recursion_depth = 0;
 static mutex_t crash_mutex;
 
 // Make this non-static so stack traces are easier to follow
-void crash_signal_handler(int sig_num);
-
 void crash_signal_handler(int sig_num)
 {
     // We rely on mutexes ignoring locks held by the same thread.
@@ -201,13 +200,12 @@ void crash_signal_handler(int sig_num)
     signal(sig_num, SIG_DFL);
     raise(sig_num);
 }
-#endif
 
 void init_crash_handler()
 {
-#if defined(USE_UNIX_SIGNALS)
     mutex_init(crash_mutex);
 
+#if defined(USE_UNIX_SIGNALS)
     for (int i = 1; i <= 64; i++)
     {
 #ifdef SIGALRM
@@ -404,7 +402,7 @@ void call_gdb(FILE *file)
     char attach_cmd[20] = {};
     snprintf(attach_cmd, sizeof(attach_cmd), "attach %d", getpid());
 
-#ifdef TARGET_OS_LINUX
+#if defined(TARGET_OS_LINUX) && !defined(__EMSCRIPTEN__)
     prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0);
 #endif
     switch (int gdb = fork())
@@ -447,9 +445,7 @@ void disable_other_crashes()
     // If one thread calls end() without going through a crash (a handled
     // fatal error), no one else should be allowed to crash. We're already
     // going down so blocking the other thread is ok.
-#ifdef USE_UNIX_SIGNALS
     mutex_lock(crash_mutex);
-#endif
 }
 
 void watchdog()

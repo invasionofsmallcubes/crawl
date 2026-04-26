@@ -99,12 +99,12 @@ function tomb_trap_set(e)
   if e.is_validating() then return end
 
   if dgn.persist.tomb_trap_sets == nil then
-    local opt = { "tyrant's trap", "lobbyist's trap", "doom trap" }
+    local opt = { "trap_tyrant", "lobbyist's trap", "doom trap" }
     dgn.persist.tomb_trap_sets = { util.random_from(opt), util.random_from(opt),
                                    util.random_from(opt) }
   end
 ]]
-  e.kfeat("^ = alarm trap / net trap / zot trap / dispersal trap / tyrant's trap")
+  e.kfeat("^ = trap_alarm / trap_net / trap_zot / trap_dispersal / trap_tyrant")
   -- e.kfeat("~ = " .. dgn.persist.tomb_trap_sets[you.depth()])
   -- e.subst("^ = ^:36 ~:14")
 end
@@ -121,7 +121,7 @@ function tomb_1_centre_setup(e)
   tomb_guardian_set(e, true)
   tomb_1_mummy_priest_set(e, true)
 
-  e.kfeat("^ = alarm trap w:5 / dispersal trap / net trap / zot trap")
+  e.kfeat("^ = trap_alarm w:5 / trap_dispersal / trap_net / trap_zot")
   e.subst(". = ^ .:490")
 
   e.lua_marker(">", hatch_name("tomb2_entry"))
@@ -1309,7 +1309,7 @@ SUBST:    d=", e=", f="
 # rooms.
 SUBST:    T = ^..., ' = ^ ':210, ' = 1:5 2:5 3:1 .:89
 SUBST:    " = ^ ":130, " = 2:3 3:1 .:96
-KFEAT:    ^ = alarm trap / net trap / zot trap w:5 / dispersal trap w:5
+KFEAT:    ^ = trap_alarm / trap_net / trap_zot w:5 / trap_dispersal w:5
 : set_border_fill_type("permarock_wall")
 #
 MAP

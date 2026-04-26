@@ -722,7 +722,7 @@ Summon Swarm spell
 
 이 주문은 역병을 일으킨다고 알려진 벌레 떼를 소환한다.
 %%%%
-Summon Ufetubus spell
+Ufetubi Swarm spell
 
 이 주문은 당신 주위에 떼지어 귀찮게 구는 작은 악마인 우페투비를 여럿 소환한다.
 %%%%

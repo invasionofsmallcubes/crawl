@@ -53,11 +53,8 @@ spret cast_iood(actor *caster, int pow, bolt *beam, float vx, float vy,
     int mtarg = !beam ? MHITNOT :
                 beam->target == you.pos() ? int{MHITYOU} : env.mgrid(beam->target);
 
-    monster *mon = place_monster(mgen_data(orb_type,
-                (is_player) ? BEH_FRIENDLY :
-                    ((monster*)caster)->friendly() ? BEH_FRIENDLY : BEH_HOSTILE,
-                coord_def(),
-                mtarg).set_summoned(caster, SPELL_IOOD, 0, false, false), true, true);
+    monster *mon = place_monster(mgen_data(orb_type, SAME_ATTITUDE(caster), coord_def(), mtarg)
+                                 .set_summoned(caster, SPELL_IOOD, 0, false, false), true, true);
     if (!mon)
     {
         mprf(MSGCH_ERROR, "Failed to spawn projectile.");
@@ -105,8 +102,9 @@ spret cast_iood(actor *caster, int pow, bolt *beam, float vx, float vy,
         mon->props[IOOD_VY].get_float() = vy;
     }
 
-    mon->props[IOOD_KC].get_byte() = (is_player) ? KC_YOU :
-        ((monster*)caster)->friendly() ? KC_FRIENDLY : KC_OTHER;
+    mon->props[IOOD_KC].get_byte() = (is_player) ? KC_YOU
+                                                 : caster->friendly() ? KC_FRIENDLY
+                                                                      : KC_OTHER;
     mon->props[IOOD_POW].get_short() = pow;
     mon->flags &= ~MF_JUST_SUMMONED;
     mon->props[IOOD_CASTER].get_string() = caster->as_monster()

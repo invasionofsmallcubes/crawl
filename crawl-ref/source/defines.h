@@ -62,7 +62,7 @@ enum extra_monster_index_type
 #define PAN_MONS_ALLOC 10
 #define MAX_MONS_ALLOC 20
 
-#define MAX_SUBTYPES   60
+#define MAX_SUBTYPES   64
 
 // max size of item list {dlb}:
 #define MAX_ITEMS 2000
@@ -153,9 +153,6 @@ const int ICEMAIL_TIME = 30 * BASELINE_DELAY;
 
 // This value is used to mark immune levels of WL
 const int WILL_INVULN = 5000;
-
-// This is the damage amount used to signal insta-death
-const int INSTANT_DEATH = -9999;
 
 // Maximum enchantment on weapons/secondary armours
 // Note: use armour_max_enchant(item) to get the correct limit for item
@@ -313,8 +310,6 @@ const char * const THUNDERBOLT_AIM_KEY     = "thunderbolt_aim";
 #define FAKE_MON_KEY "fake"
 #define MMOV_KEY "mmov"
 #define BATTLESPHERE_KEY "battlesphere"
-#define FOE_APPROACHING_KEY "foe_approaching"
-#define FAUX_PAS_KEY "foe_pos"
 #define SWOOP_COOLDOWN_KEY "swoop_cooldown"
 #define OUTWARDS_KEY "outwards"
 #define INWARDS_KEY "inwards"

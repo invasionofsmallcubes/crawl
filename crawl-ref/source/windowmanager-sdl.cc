@@ -459,7 +459,7 @@ int SDLWrapper::init(coord_def *m_windowsz)
     }
 
     int cur_display;
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
     cur_display = 0;
 #else
     // find the current display, based on the mouse position
@@ -526,6 +526,13 @@ int SDLWrapper::init(coord_def *m_windowsz)
     {
         flags |= SDL_WINDOW_FULLSCREEN;
     }
+
+#ifdef __EMSCRIPTEN__
+    // Browser canvas is fixed-size; the SDL2 Emscripten port doesn't support
+    // resize, HIDPI, or fullscreen toggles. Strip those flags.
+    flags &= ~(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
+               | SDL_WINDOW_FULLSCREEN);
+#endif
 
     if (flags & SDL_WINDOW_FULLSCREEN)
     {
@@ -646,6 +653,11 @@ void SDLWrapper::set_window_title(const char *title)
 
 bool SDLWrapper::set_window_icon(const char* icon_name)
 {
+#ifdef __EMSCRIPTEN__
+    // Browser tab icon comes from <link rel="icon"> in the HTML shell.
+    (void)icon_name;
+    return true;
+#else
     string icon_path = datafile_path(icon_name, false, true);
     if (!icon_path.size())
     {
@@ -667,6 +679,7 @@ bool SDLWrapper::set_window_icon(const char* icon_name)
     SDL_SetWindowIcon(m_window, surf);
     SDL_FreeSurface(surf);
     return true;
+#endif
 }
 
 #ifdef TARGET_OS_WINDOWS
@@ -777,6 +790,12 @@ void SDLWrapper::set_mod_state(tiles_key_mod mod)
 
 void SDLWrapper::set_mouse_cursor(mouse_cursor_type type)
 {
+#ifdef __EMSCRIPTEN__
+    // Custom cursors are de-scoped under Emscripten; the browser's default
+    // cursor is what users see.
+    (void)type;
+    return;
+#else
     SDL_Cursor *cursor = m_cursors[type];
 
     if (!cursor)
@@ -802,6 +821,7 @@ void SDLWrapper::set_mouse_cursor(mouse_cursor_type type)
     }
 
     SDL_SetCursor(cursor);
+#endif
 }
 
 unsigned short SDLWrapper::get_mouse_state(int *x, int *y) const
@@ -823,6 +843,10 @@ unsigned short SDLWrapper::get_mouse_state(int *x, int *y) const
 
 string SDLWrapper::get_clipboard()
 {
+#ifdef __EMSCRIPTEN__
+    // Browser clipboard requires user gesture and async APIs; not wired up.
+    return string();
+#else
     string result;
     char *clip = SDL_GetClipboardText();
     if (!clip)
@@ -830,11 +854,16 @@ string SDLWrapper::get_clipboard()
     result = string(clip);
     SDL_free(clip);
     return result;
+#endif
 }
 
 bool SDLWrapper::has_clipboard()
 {
+#ifdef __EMSCRIPTEN__
+    return false;
+#else
     return SDL_HasClipboardText() == SDL_TRUE;
+#endif
 }
 
 static char32_t _key_suppresses_textinput(int keycode)

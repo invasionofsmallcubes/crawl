@@ -29,12 +29,7 @@ void set_terrain_mapped(const coord_def gc)
     map_cell* cell = &env.map_knowledge(gc);
     cell->flags &= (~MAP_CHANGED_FLAG);
     cell->flags |= MAP_MAGIC_MAPPED_FLAG;
-#ifdef USE_TILE
-    // This may have changed the explore horizon, so update adjacent minimap
-    // squares as well.
-    for (adjacent_iterator ai(gc, false); ai; ++ai)
-        tiles.update_minimap(*ai);
-#endif
+    redraw_view_at(gc);
 }
 
 int count_detected_mons()
@@ -488,11 +483,11 @@ bool magic_mapping(int map_radius, int proportion, bool suppress_msg,
             // If the player has already seen the square, update map
             // knowledge with the new terrain. Otherwise clear what we had
             // before.
-            if (knowledge.seen())
+            if (knowledge.seen()
+                || env.map_forgotten && (*env.map_forgotten)(pos).seen())
             {
-                dungeon_feature_type newfeat = env.grid(pos);
-                trap_type tr = feat_is_trap(newfeat) ? get_trap_type(pos) : TRAP_UNASSIGNED;
-                knowledge.set_feature(newfeat, env.grid_colours(pos), tr);
+                knowledge.set_feature(env.grid(pos), env.grid_colours(pos));
+                redraw_view_at(pos);
             }
             else
                 knowledge.clear();
@@ -530,8 +525,7 @@ bool magic_mapping(int map_radius, int proportion, bool suppress_msg,
 
         if (open)
         {
-            knowledge.set_feature(feat, _feat_default_map_colour(feat),
-                feat_is_trap(env.grid(pos)) ? get_trap_type(pos) : TRAP_UNASSIGNED);
+            knowledge.set_feature(feat, _feat_default_map_colour(feat));
             if (is_notable_terrain(feat))
                 seen_notable_thing(feat, pos);
 
@@ -543,6 +537,9 @@ bool magic_mapping(int map_radius, int proportion, bool suppress_msg,
                 set_terrain_seen(pos);
                 StashTrack.add_stash(pos);
                 show_update_at(pos);
+#ifdef USE_TILE
+                tile_draw_map_cell(pos);
+#endif
             }
             else
             {
@@ -552,9 +549,6 @@ bool magic_mapping(int map_radius, int proportion, bool suppress_msg,
                 else if (get_feature_dchar(feat) == DCHAR_ARCH)
                     num_shops_portals++;
             }
-#ifdef USE_TILE
-            tile_draw_map_cell(pos);
-#endif
 
             did_map = true;
         }

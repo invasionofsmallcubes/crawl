@@ -7198,21 +7198,9 @@ VISUAL:@The_monster@ looks irritated.
 %%%%
 _Terence_rare_
 
-@The_monster@ screams @at_foe@, "Your {{
-if you.race() == "Armataur" then
-    return "tough hide"
-else
-    return "supposed skill"
-end
-}} won't protect you!" @player_only@
+@The_monster@ screams @at_foe@, "Your supposed skill won't protect you!"
 
-@The_monster@ screams @at_foe@, "Where's your {{
-if you.race() == "Armataur" then
-    return "elephant"
-else
-    return "power"
-end
-}} now?!" @player_only@
+@The_monster@ screams @at_foe@, "Where's your power now?!"
 
 @The_monster@ screams @at_foe@, "Stand, coward! You want a fight, show some honour!"
 

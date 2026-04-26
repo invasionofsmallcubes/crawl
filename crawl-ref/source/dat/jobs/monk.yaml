@@ -13,10 +13,10 @@ weapon_choice: plain
 recommended_species:
   - mountain dwarf
   - troll
-  - armataur
   - merfolk
   - gargoyle
   - demonspawn
+  - gale centaur
 skills:
   fighting: 3
   dodging: 3

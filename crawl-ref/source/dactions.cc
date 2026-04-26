@@ -136,7 +136,7 @@ bool mons_matches_daction(const monster* mon, daction_type act)
     case DACT_BEOGH_VENGEANCE_CLEANUP:
         return mon->has_ench(ENCH_VENGEANCE_TARGET)
                && mon->get_ench(ENCH_VENGEANCE_TARGET).degree
-                  <= you.props[BEOGH_VENGEANCE_NUM_KEY].get_int();
+                  != you.props[BEOGH_VENGEANCE_NUM_KEY].get_int();
 
     case DACT_BANE_MORTALITY_CLEANUP:
         return mon->was_created_by(MON_SUMM_MORTALITY);

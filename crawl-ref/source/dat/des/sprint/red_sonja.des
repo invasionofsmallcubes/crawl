@@ -20,7 +20,7 @@ MARKER: H = lua:fog_machine { cloud_type = "foul pestilence", \
              size = 10, walk_dist = 6, spread_rate = 4}
 MONS:   Ijyb, ogre, Sigmund, centaur warrior, Sonja, deep troll, hornet
 SUBST:  r = ~.....
-KFEAT:  ~ = net trap
+KFEAT:  ~ = trap_net
 KITEM:  I = potion of curing
 KITEM:  $ = gold q:27
 KMONS:  D = kobold demonologist

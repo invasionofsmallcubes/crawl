@@ -236,31 +236,28 @@ static bool _grid_is_interesting(const coord_def& pos)
         return true;
     }
 
-    const auto trap = get_trap_type(pos);
-    if (trap == TRAP_UNASSIGNED)
+    if (!feat_is_trap(feat))
         return false;
 
     // Certain traps we want to put in stashes, since they help navigate
     // within or across levels, or can be used tactically (alarm), or might
     // release goodies (plate).
-    return trap == TRAP_PLATE
-        || trap == TRAP_DISPERSAL
-        || trap == TRAP_TELEPORT
-        || trap == TRAP_TELEPORT_PERMANENT
-        || trap == TRAP_GOLUBRIA
-        || trap == TRAP_ALARM
-        || trap == TRAP_SHAFT;
+    return feat == DNGN_TRAP_PLATE
+        || feat == DNGN_TRAP_DISPERSAL
+        || feat == DNGN_TRAP_TELEPORT
+        || feat == DNGN_TRAP_TELEPORT_PERMANENT
+        || feat == DNGN_PASSAGE_OF_GOLUBRIA
+        || feat == DNGN_TRAP_ALARM
+        || feat == DNGN_TRAP_SHAFT;
 }
 
 void Stash::update()
 {
     feat = DNGN_FLOOR;
-    trap = TRAP_UNASSIGNED;
     feat_desc = "";
     if (_grid_is_interesting(pos))
     {
         feat = env.grid(pos);
-        trap = get_trap_type(pos);
         feat_desc = feature_description_at(pos, false, DESC_A);
     }
 
@@ -402,7 +399,6 @@ vector<stash_search_result> Stash::matches_search(
             res.match = fdesc;
             res.primary_sort = fdesc;
             res.feat = feat;
-            res.trap = trap;
             results.push_back(res);
         }
     }
@@ -526,7 +522,6 @@ void Stash::save(writer& outf) const
     marshallByte(outf, pos.y);
 
     marshallByte(outf, feat);
-    marshallByte(outf, trap);
 
     marshallString(outf, feat_desc);
 
@@ -547,7 +542,11 @@ void Stash::load(reader& inf)
     pos.y = unmarshallByte(inf);
 
     feat =  static_cast<dungeon_feature_type>(unmarshallUByte(inf));
-    trap =  static_cast<trap_type>(unmarshallUByte(inf));
+
+#if TAG_MAJOR_VERSION == 34
+    if (inf.getMinorVersion() < TAG_MINOR_NO_TRAP_DEF)
+        unmarshallUByte(inf);
+#endif
     feat_desc = unmarshallString(inf);
 
     uint8_t flags = unmarshallUByte(inf);
@@ -1791,8 +1790,6 @@ bool StashTracker::display_search_results(
         }
         else if (res.shop)
             me->add_tile(tile_def(tileidx_shop(&res.shop->shop)));
-        else if (feat_is_trap(res.feat))
-            me->add_tile(tile_def(tileidx_trap(res.trap)));
         else if (feat_is_runed(res.feat))
         {
             // Handle large doors and huge gates

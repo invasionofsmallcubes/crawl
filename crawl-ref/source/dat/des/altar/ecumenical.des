@@ -158,7 +158,7 @@ ENDMAP
 NAME:   ebering_ecumenical_altar_webs
 TAGS:   transparent
 NSUBST: ^ = 4=^. / 4=^..
-KFEAT:  ^ = web trap
+KFEAT:  ^ = web
 : ecumenical_altar_setup(_G)
 MAP
 ^^^
@@ -492,7 +492,7 @@ ENDMAP
 
 NAME:   shapermc_ecumenical_altar_mp_highgroup
 TAGS:   transparent
-KFEAT:  ^ = web trap
+KFEAT:  ^ = web
 SUBST:  - = --., G = GGG-, ^ = ^^.
 COLOUR: - = brown
 FTILE:  -G = floor_rough_brown
@@ -578,7 +578,7 @@ MAP
 ENDMAP
 
 NAME:  hellmonk_ecumenical_altar_leap_of_faith
-KFEAT: ^ = shaft trap
+KFEAT: ^ = shaft
 : ecumenical_altar_setup(_G)
 MAP
 xxx
@@ -657,8 +657,8 @@ ENDMAP
 
 NAME:  hellmonk_ecumenical_altar_crossroads
 TAGS:  transparent
-KFEAT: r = abandoned_shop / G / l / t / V / T / web / shaft trap / \
-            net trap / A / > / Y w:2
+KFEAT: r = abandoned_shop / G / l / t / V / T / web / shaft / \
+            trap_net / A / > / Y w:2
 : ecumenical_altar_setup(_G)
 MAP
 @@@xxxxxxx@@@
@@ -888,7 +888,7 @@ SUBST:  ' = pf .:100
 KMONS:  p = plant
 KMONS:  f = fungus
 SUBST:  ^ = ^..
-KFEAT:  ^ = web trap
+KFEAT:  ^ = web
 : ecumenical_altar_setup(_G)
 MAP
    .........
@@ -957,7 +957,7 @@ SUBST:   ' = f...
 TILE:    C = wall_stone_puffball
 : else
 NSUBST:  ' = 3 = ^^. / .
-KFEAT:   ^ = web trap
+KFEAT:   ^ = web
 : end
 SUBST:   B = b
 : ecumenical_altar_setup(_G)

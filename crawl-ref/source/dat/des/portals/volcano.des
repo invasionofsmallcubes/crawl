@@ -92,7 +92,7 @@ function volcano_setup (e)
     setup_loot(e)
     e.kfeat("< = exit_volcano")
     e.kfeat("I = exit_volcano")
-    e.kfeat("^ = alarm trap")
+    e.kfeat("^ = trap_alarm")
     e.subst("L : LLL.l")
     e.subst("L = lll.")
     e.subst("y : yyy.x")
@@ -191,7 +191,7 @@ function setup_loot (e)
                                  "fire dragon scales w:8 / granite talisman w:2 / " ..
                                  "dragon-coil talisman w:2")
     e.item(dgn.loot_potions)
-    e.item(make_fiery_weapon(e, {"rapier w:10", "quick blade w:5",
+    e.item(make_fiery_weapon(e, {"rapier w:8", "athame w:4", "quick blade w:4",
                                  "demon whip w:2", "eveningstar w:2",
                                  "great mace w:16", "demon blade w:2",
                                  "great sword w:16", "triple sword w:2",

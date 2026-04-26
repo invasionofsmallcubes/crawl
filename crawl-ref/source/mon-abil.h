@@ -53,3 +53,6 @@ void activate_tesseracts();
 void tesseract_action(monster& mon);
 
 int slymdra_split(monster& slymdra, int count = -1, bool quiet = false);
+
+bool thorn_hunter_range_check(monster& mon);
+void thorn_hunter_raise_barrier(monster& mon, bool skip_proximity_check = false);

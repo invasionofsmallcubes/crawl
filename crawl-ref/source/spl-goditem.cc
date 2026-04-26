@@ -851,11 +851,8 @@ spret cast_tomb(int pow, actor* victim, int source, bool fail)
                 push_items_from(*ai, &adj_spots);
 
             // All traps are destroyed.
-            if (trap_def *ptrap = trap_at(*ai))
-            {
-                ptrap->destroy();
-                env.grid(*ai) = DNGN_FLOOR;
-            }
+            if (feat_is_trap(env.grid(*ai)))
+                destroy_trap(*ai);
 
             // Actually place the wall.
             if (zin)
@@ -922,7 +919,6 @@ spret cast_tomb(int pow, actor* victim, int source, bool fail)
                                             tomb_duration,
                                             source,
                                             victim->mindex()));
-        env.markers.clear_need_activate(); // doesn't need activation
     }
     else
         canned_msg(MSG_NOTHING_HAPPENS);

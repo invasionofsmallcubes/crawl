@@ -1130,8 +1130,8 @@ KFEAT:  M = jewellery shop type:Timeless suffix:Talismans count:20 greed:7 use_a
 KFEAT:  N = weapon shop type:Staff suffix:Store count:7 use_all greed:30 ; \
             staff of fire | staff of air | staff of earth | staff of cold |\
             staff of alchemy | staff of necromancy | staff of conjuration
-KFEAT:  Q = weapon shop type:Weapon suffix:Rack count:17 use_all greed:30 ; \
-            mundane quick blade | mundane demon blade |\
+KFEAT:  Q = weapon shop type:Weapon suffix:Rack count:18 use_all greed:30 ; \
+            mundane athame | mundane quick blade | mundane demon blade |\
             mundane triple sword | mundane broad axe |\
             mundane executioner's axe | mundane demon whip |\
             mundane great mace | mundane giant spiked club |\

@@ -340,7 +340,7 @@ void InvMenu::set_title(const string &s)
             case 2: str = "Scrolls: "; break;
             case 3: str = "Evocable Items: "; break;
         }
-        str += "    (Left/Right to switch category)";
+        str += "    (Left/Right/Tab to switch category)";
         set_title(new InvTitle(this, str, title_annotate));
         return;
     }
@@ -441,6 +441,22 @@ void InvMenu::set_page(int page)
     }
     get_selected(&sel);
     update_title();
+}
+
+void InvMenu::hover_item(const item_def* item)
+{
+    for (size_t i = 0; i < items.size(); ++i)
+    {
+        InvEntry *inv = dynamic_cast<InvEntry*>(items[i]);
+        if (!inv)
+            continue;
+
+        if (inv->item->link == item->link)
+        {
+            set_hovered(i, true);
+            break;
+        }
+    }
 }
 
 bool InvMenu::process_command(command_type cmd)
@@ -1448,6 +1464,10 @@ static int _invent_select(const char *title = nullptr,
         menu.cycle_page(1);
     }
 
+    // If this is the 'F'ire menu, pre-select the last item the player fired.
+    if (item_selector == OSEL_QUIVER_ACTION && you.last_fired >= 0)
+        menu.hover_item(&you.inv[you.last_fired]);
+
     menu.show(true);
 
     if (items)
@@ -1489,7 +1509,7 @@ void display_inventory()
 
 static string _drop_menu_titlefn(const Menu*, const string &)
 {
-    return "Drop what? (Left/Right to switch category) " + slot_description() + " (_ for help)";
+    return "Drop what? (Left/Right/Tab to switch category) " + slot_description() + " (_ for help)";
 }
 
 /**

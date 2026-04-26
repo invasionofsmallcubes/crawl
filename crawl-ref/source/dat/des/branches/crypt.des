@@ -87,7 +87,7 @@ function crypt_loot_plus(e, glyph)
   local top_ax = util.random_from({"executioner's axe", "executioner's axe",
                                    "broad axe"})
   local top_rg = util.random_from({"longbow", "triple crossbow", "hand cannon"})
-  local high_sb = util.random_from({"quick blade", "rapier"})
+  local high_sb = util.random_from({"quick blade", "athame"})
   local top_mel = util.random_from({top_lb, "quick blade", top_pa, top_ax,
                                     "eveningstar", "lajatang"})
   local top_weap = util.random_from({top_lb, "quick blade", top_pa, top_ax,
@@ -407,7 +407,7 @@ ENDMAP
 # It's been undisturbed for so long, cobwebs are starting to form.
 NAME:   grunt_crypt_arrival_webbed
 TAGS:   extra uniq_crypt_arrival no_monster_gen no_trap_gen no_item_gen
-KFEAT:  ^ = web trap / w:20 floor
+KFEAT:  ^ = web / w:20 floor
 DEPTH:  Crypt:1
 WEIGHT: 30
 ORIENT: south
@@ -912,7 +912,7 @@ ENDMAP
 NAME:   nicolae_crypt_disinterred
 TAGS:   transparent extra decor
 DEPTH:  Crypt, !Crypt:$
-KFEAT:  ^ = shaft trap
+KFEAT:  ^ = shaft
 NSUBST: ^ = 3=^ / 3=^. / .
 : vault_granite_statue_setup(_G, "G", "gravestone")
 MAP
@@ -1369,7 +1369,7 @@ TAGS:  no_monster_gen no_item_gen
 DEPTH: Crypt
 MONS:  lich / bone dragon w:3, zombie / draugr
 KMONS: Y = Boris / ancient lich, ancient lich / dread lich
-KFEAT: ^ = w:5 alarm trap / w:8 zot trap / w:50 floor
+KFEAT: ^ = w:5 trap_alarm / w:8 trap_zot / w:50 floor
 SUBST: $ = .$*|, ? = $%, 1 = 1:13 2:6
 MAP
     ccccc
@@ -1566,7 +1566,7 @@ NAME:   st_small_mortuary
 DEPTH:  Crypt
 MONS:   necromancer, vampire mage, vampire bloodprince
 ITEM:   sanguine talisman w:15 / sanguine talisman randart w:5 / \
-        rapier ego:vampirism pre_id / demon blade ego:vampirism pre_id
+        athame ego:vampirism pre_id / demon blade ego:vampirism pre_id
 SUBST:  1 : 1.
 NSUBST: ' = 5:e / *:., * = 1:d* / *:*
 : dgn.delayed_decay(_G, 'e', 'human corpse')
@@ -1593,7 +1593,7 @@ NAME:   st_vampire_maze
 DEPTH:  Crypt
 MONS:   vampire, vampire knight, vampire mage, vampire bloodprince
 ITEM:   sanguine talisman w:15 / sanguine talisman randart w:5 / \
-        rapier ego:vampirism pre_id / demon blade ego:vampirism pre_id
+        athame ego:vampirism pre_id / demon blade ego:vampirism pre_id
 NSUBST: * = 1:d* / *:*
 SUBST:  1 = 12233
 MAP
@@ -1982,40 +1982,41 @@ MAP
           cccccccccccc
 ENDMAP
 
-NAME: cheibrodos_crypt_draghalla
-TAGS: no_item_gen no_monster_gen
-DEPTH: Crypt, !Crypt:$
+NAME:   cheibrodos_crypt_draghalla
+TAGS:   no_item_gen no_monster_gen no_wall_fixup
+DEPTH:  Crypt, !Crypt:$
 ORIENT: float
 # Monster density might be off here
-MONS: flayed ghost w:5 / phantasmal warrior, skeletal warrior
-MONS: hell knight / necromancer w:2, bone dragon
+MONS:   flayed ghost w:5 / phantasmal warrior, skeletal warrior
+MONS:   hell knight / necromancer w:2, bone dragon
 : mons("reaper ; " .. scythe("flaming"))
-MONS: lich
-KMONS: A0 = fire dragon draugr w:12 / quicksilver dragon draugr w:4 / \
-            laughing skull w:6
-KFEAT: A = l
+MONS:   lich
+KMONS:  A0 = fire dragon draugr w:12 / quicksilver dragon draugr w:4 / \
+             laughing skull w:6
+KFEAT:  A = l
 NSUBST: - = 1:0 / 2=0. / 2:1 / 1=1. / 1:2 / 1=2. / 6:3 / 2=3.
 NSUBST: " = 4:A / 2=Al / *:l, ' = 2:0 / 2=1. / 2:5, ; = 1:4 / 1=5. / 1:6
 NSUBST: ` = 1:| / 2=|* / 5:* / 2=*% / *:$
+TILE:   x = wall_baleful
 MAP
-  xxxxxxxxxxxxxxxxxxxxxxxxxxx
- xxllllllxxxxxx""""""""""""xx
- xllxxxGllxxxx"""""""""""""xx
-xxlxx`xx'llxxx""--------"""xx
-xllx```x'.llxx"----------""xx
-xlxx```x'.llxx"---""""---""xx
-xlx...xx'..lll"--""""""--""xx.
-xlx;;.x.....ll.--""xx""--."xG.
-xln;;.+........--""xx""--....@
-xln;;.+........--""xx""--....@
-xlx;;.x.....ll.--""xx""--."xG.
-xlx...xx'..lll"--""""""--""xx.
-xlxx```x'.llxx"---""""---""xx
-xllx```x'.llxx"----------""xx
-xxlxx`xx'llxxx""--------"""xx
- xllxxxGllxxxx"""""""""""""xx
- xxllllllxxxxxx""""""""""""xx
-  xxxxxxxxxxxxxxxxxxxxxxxxxxx
+  ccccccccccccccccccccccccccc
+ ccllllllcccccc""""""""""""cc
+ cllcccxllcccc"""""""""""""cc
+cclcc`cc'llccc""--------"""cc
+cllc```c'.llcc"----------""cc
+clcc```c'.llcc"---""""---""cc
+clc...cc'..lll"--""""""--""cc.
+clc;;.c.....ll.--""cc""--."cx.
+cln;;.+........--""cc""--....@
+cln;;.+........--""cc""--....@
+clc;;.c.....ll.--""cc""--."cx.
+clc...cc'..lll"--""""""--""cc.
+clcc```c'.llcc"---""""---""cc
+cllc```c'.llcc"----------""cc
+cclcc`cc'llccc""--------"""cc
+ cllcccxllcccc"""""""""""""cc
+ ccllllllcccccc""""""""""""cc
+  ccccccccccccccccccccccccccc
 ENDMAP
 
 NAME:    nicolae_crypt_knee_deep_in_the_dead
@@ -2098,7 +2099,7 @@ DEPTH:   Crypt
 ORIENT:  float
 WEIGHT:  5
 ITEM:    scroll of enchant weapon pre_id, blade talisman
-ITEM:    mundane dagger, dagger good_item
+ITEM:    mundane dagger, dagger good_item w:19 / athame good_item w:1
 : local q = "quick blade randart ego:"
 : item(q .. "draining / " .. q .. "vampirism / " .. q ..
 :           "pain / " .. q .. "distortion")
@@ -2810,9 +2811,9 @@ MONS:   laughing skull w:12 / skeletal warrior / draugr w:8
 MONS:   ancient champion
 KMONS:  F = orange crystal statue / obsidian statue
 KITEM:  | = | no_pickup
-KFEAT:  ^ = alarm trap
+KFEAT:  ^ = trap_alarm
 KFEAT:  m = iron_grate
-KFEAT:  | = pressure plate trap
+KFEAT:  | = trap_pressure_plate
 SUBST:  4 = 4., F = G:99 F:1
 MARKER: m = lua:portal_desc {wall_phase = 1}
 MARKER: | = lua:portal_desc {wall_phase = 1}
@@ -2858,8 +2859,8 @@ PLACE:  Crypt:$
 ####### chapel garden
 SUBST:  F = f?, f = p.
 KMONS:  p = withered plant
-KMONS:  ! = skeletal warrior ; w:6 dagger ego:pain | w:5 short sword ego:draining |\
-                               w:2 rapier ego:pain | w:1 quick blade ego:pain
+KMONS:  ! = skeletal warrior ; w:6 dagger ego:pain | w:5 rapier ego:draining | \
+                               w:2 athame ego:pain | w:1 quick blade ego:pain
 KITEM:  s = any book
 SUBST:  s = s%
 SUBST:  u = U Y
@@ -3163,7 +3164,7 @@ NSUBST: A = 1:+ / *:c
 NSUBST: B = 1:+ / *:c
 NSUBST: C = 1:6 / *:5
 KFEAT:  YD = closed_door
-KFEAT:  ER = alarm trap
+KFEAT:  ER = trap_alarm
 KFEAT:  CSd = floor
 COLOUR: YsDdE = darkgrey
 : local brnd = crawl.random2(15)

@@ -47,6 +47,26 @@ LUAFN(view_feature_at)
     return 1;
 }
 
+/*** Have we actually seen this location before? A square that's only magic
+ * mapped or that was forgotten with X->^F doesn't count as seen.
+ * @tparam int x
+ * @tparam int y
+ * @treturn boolean True if we've actually seen this location, false
+ *                  otherwise.
+ * @function seen_at
+ */
+LUAFN(view_seen_at)
+{
+    PLAYERCOORDS(p, 1, 2)
+    if (!map_bounds(p))
+    {
+        lua_pushboolean(ls, false);
+        return 1;
+    }
+    lua_pushboolean(ls, env.map_knowledge(p).seen());
+    return 1;
+}
+
 /*** What kind of cloud (if any) is here?
  * @tparam int x
  * @tparam int y
@@ -68,34 +88,6 @@ LUAFN(view_cloud_at)
         return 1;
     }
     lua_pushstring(ls, cloud_type_name(c).c_str());
-    return 1;
-}
-
-/*** What kind of trap (if any) is here?
- * @tparam int x
- * @tparam int y
- * @treturn string|nil The base trap name or nil. Here the base name doesn't
- *                     include the word "trap" and is the same string passed to
- *                     the c_trap_is_safe() hook.
- * @function trap_at
- */
-LUAFN(view_trap_at)
-{
-    PLAYERCOORDS(p, 1, 2)
-    if (!map_bounds(p))
-    {
-        lua_pushnil(ls);
-        return 1;
-    }
-
-    auto trap = trap_at(p);
-    if (!trap)
-    {
-        lua_pushnil(ls);
-        return 1;
-    }
-
-    lua_pushstring(ls, trap_name(trap->type).c_str());
     return 1;
 }
 
@@ -125,16 +117,12 @@ LUAFN(view_is_safe_square)
         PLUARET(boolean, false);
         return 1;
     }
-    trap_type t = env.map_knowledge(p).trap();
-    if (t != TRAP_UNASSIGNED)
+    dungeon_feature_type f = env.map_knowledge(p).feat();
+    if (feat_is_trap(f) && !trap_is_safe(f))
     {
-        trap_def trap;
-        trap.type = t;
-        trap.ammo_qty = 1;
-        PLUARET(boolean, trap.is_safe());
+        PLUARET(boolean, false);
         return 1;
     }
-    dungeon_feature_type f = env.map_knowledge(p).feat();
     const bool assume_flight = lua_isboolean(ls, 1) ? lua_toboolean(ls, 1)
                                                     : false;
     if (f != DNGN_UNSEEN && !feat_is_traversable_now(f, false, assume_flight)
@@ -376,14 +364,8 @@ LUAFN(view_get_map)
             if (is_damaging_cloud(cell.cloud(), true, YOU_KILL(killer)))
                 unsafe = true;
         }
-        if (!unsafe && cell.trap() != TRAP_UNASSIGNED)
-        {
-            trap_def trap;
-            trap.type = cell.trap();
-            trap.ammo_qty = 1;
-            if (!trap.is_safe())
-                unsafe = true;
-        }
+        if (!unsafe && feat_is_trap(feat) && !trap_is_safe(feat))
+            unsafe = true;
         if (unsafe)
             LUA_PUSHBOOL("unsafe", true);
         if (!visible)
@@ -422,8 +404,8 @@ LUAFN(view_update_monsters)
 static const struct luaL_Reg view_lib[] =
 {
     { "feature_at", view_feature_at },
+    { "seen_at", view_seen_at },
     { "cloud_at", view_cloud_at },
-    { "trap_at", view_trap_at },
     { "is_safe_square", view_is_safe_square },
     { "can_reach", view_can_reach },
     { "withheld", view_withheld },

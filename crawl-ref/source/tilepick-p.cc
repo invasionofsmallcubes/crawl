@@ -118,6 +118,9 @@ tileidx_t tilep_equ_weapon(const item_def &item)
     case WPN_RAPIER:
         tile = TILEP_HAND1_RAPIER;
         break;
+    case WPN_ATHAME:
+        tile = TILEP_HAND1_ATHAME;
+        break;
     case WPN_DEMON_BLADE:
         tile = TILEP_HAND1_DEMON_BLADE;
         break;
@@ -415,9 +418,9 @@ tileidx_t tilep_equ_boots(const item_def &item)
     return tile ? tileidx_enchant_equ(item, tile) : 0;
 }
 
-tileidx_t tileidx_player()
+tile_with_flags_t tileidx_player()
 {
-    tileidx_t ch = TILEP_PLAYER;
+    tile_with_flags_t ch = TILEP_PLAYER;
 
     // Currently, the flying flag is only used for not drawing the tile in the
     // water. in_water() checks Beogh's water walking. If the flying flag is
@@ -523,11 +526,6 @@ tileidx_t tilep_species_to_base_tile(int sp, int level)
     case SP_PURPLE_DRACONIAN:
     case SP_PALE_DRACONIAN:
         return TILEP_BASE_DRACONIAN + _draconian_colour(sp, level);
-    case SP_ARMATAUR:
-#if TAG_MAJOR_VERSION == 34
-    case SP_CENTAUR:
-#endif
-        return TILEP_BASE_ARMATAUR;
 #if TAG_MAJOR_VERSION == 34
     case SP_METEORAN:
         return TILEP_BASE_METEORAN;
@@ -571,6 +569,11 @@ tileidx_t tilep_species_to_base_tile(int sp, int level)
         return TILEP_BASE_POLTERGEIST;
     case SP_REVENANT:
         return TILEP_BASE_REVENANT;
+#if TAG_MAJOR_VERSION == 34
+    case SP_CENTAUR:
+#endif
+    case SP_GALE_CENTAUR:
+        return TILEP_BASE_GALE_CENTAUR;
     default:
         return TILEP_BASE_HUMAN;
     }
@@ -943,7 +946,9 @@ void tilep_calc_flags(const dolls_data &doll, int flag[])
         flag[TILEP_PART_BEARD] = TILEP_FLAG_HIDE;
 
     if (is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_NAGA)
-        || is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_ARMATAUR))
+        || is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_BASE_GALE_CENTAUR)
+        || is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_TRAN_WEREWOLF_NAGA)
+        || is_player_tile(doll.parts[TILEP_PART_BASE], TILEP_TRAN_WEREWOLF_GALE_CENTAUR))
     {
         flag[TILEP_PART_BOOTS] = flag[TILEP_PART_LEG] = TILEP_FLAG_HIDE;
         flag[TILEP_PART_BODY]  = TILEP_FLAG_CUT_BOTTOM;

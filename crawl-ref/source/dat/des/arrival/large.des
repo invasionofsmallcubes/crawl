@@ -997,7 +997,7 @@ FTILE:      .qG^P{ = floor_grass_dark
 FTILE:      t@ = floor_moss
 COLOUR:     . = green
 KMONS:      P = plant / bush
-KFEAT:      ^ = teleport trap
+KFEAT:      ^ = trap_teleport
 KFEAT:      p = W
 KMONS:      p = plant
 NSUBST:     p = 10=p / W, q = 10=P / .

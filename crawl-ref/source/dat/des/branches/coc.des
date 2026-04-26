@@ -642,7 +642,7 @@ TAGS:    transparent allow_dup luniq
 DEPTH:   Coc, !Coc:$
 KMONS:   1 = ice statue
 KFEAT:   1 = W
-KFEAT:   ^ = shaft trap
+KFEAT:   ^ = shaft
 SHUFFLE: DE
 SUBST:   D : 1, E : GG1, } = }}^
 MAP

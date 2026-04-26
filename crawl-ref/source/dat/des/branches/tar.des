@@ -202,7 +202,7 @@ SUBST:   34 = &
 : end
 KMONS:   0 = soul eater
 KMONS:   Z = obsidian statue
-KFEAT:   Z = zot trap
+KFEAT:   Z = trap_zot
 SHUFFLE: 1234, 12 / 34 / 56, ABCD, AB / CD / EF, {'" / {'" / }`_, {', }`, GHI
 SUBST:   { : -_ |:3, } : -_ |:2, ' : |:1 .:4, " = ., Z = Z:1 c:8
 SUBST:   G : O:20 X, H : O X:50, I = X, X : xc
@@ -1342,7 +1342,7 @@ TAGS:     tar_mu_maze no_rotate no_hmirror no_vmirror unrand
 : tar_dig_maze(_G, 0, 0)
 NSUBST:   L = 2:M / 3 = M. / 5:N / 5:P / 5:V / 1:L / *:.
 NSUBST:   . = 5:Q / *:.
-KFEAT:    L = zot trap
+KFEAT:    L = trap_zot
 KMONS:    M = tzitzimitl
 KFEAT:    N = floor
 KITEM:    N = superb_item

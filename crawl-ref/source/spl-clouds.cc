@@ -46,7 +46,6 @@ spret cast_putrefaction(monster* target, int pow, bool fail)
     // Start the cloud at radius 1, regardless of the speed of the killing blow
     marker->speed_increment -= you.time_taken - 7;
     env.markers.add(marker);
-    env.markers.clear_need_activate();
 
     mprf("Rot billows forth from %s wounds!", target->name(DESC_ITS).c_str());
 

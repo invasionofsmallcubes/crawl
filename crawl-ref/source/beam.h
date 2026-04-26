@@ -83,10 +83,6 @@ struct beam_tracer
     {
         UNUSED(bolt, mon);
     }
-    virtual void blocked(string message)
-    {
-        UNUSED(message);
-    }
 };
 
 // Used when casting a spell to check if the spell should be aborted
@@ -104,8 +100,6 @@ struct player_beam_tracer : beam_tracer
     const monster* god_hated_target = nullptr;
     int hit_self_count = 0;
     int foe_count = 0;
-    string blocked_message;
-    int blocked_count = 0;
 
     player_beam_tracer() {}
 
@@ -119,7 +113,6 @@ struct player_beam_tracer : beam_tracer
     void actor_affected(bool friendly_fire, int power) noexcept override;
     void player_hit(bool was_friendly) noexcept override;
     void monster_hit(const bolt& bolt, const monster& mon) override;
-    void blocked(string message) noexcept override;
     bool has_any_warnings() noexcept;
 };
 
@@ -186,6 +179,7 @@ struct bolt
     bool   is_death_effect = false; // effect of e.g. ballistomycete spore
     bool   aimed_at_spot = false; // aimed at (x, y), should not cross
     bool   stop_at_allies = false; // Should beam automatically stop before reaching allies
+                                   // (or neutrals that would anger your god to harm.)
     bool   safe_to_user = false;  //
     string aux_source = "";       // source of KILL_NON_ACTOR beams
 
@@ -352,8 +346,8 @@ private:
     bool is_big_cloud() const; // expands into big_cloud at endpoint
     int range_used_on_hit() const;
     bool bush_immune(const monster &mons) const;
-    bool at_blocking_monster() const;
-    int apply_lighting(int base_hit, const actor &target) const;
+
+    int apply_to_hit_modifiers(int base_hit, const actor &target) const;
 
     void do_ranged_attack(actor& target);
 
@@ -488,16 +482,12 @@ int explosion_noise(int rad);
 
 int omnireflect_chance_denom(int SH);
 
-void glaciate_freeze(monster* mon, killer_type englaciator,
-                             int kindex);
-
 void fill_chain_targets(const bolt& beam, coord_def centre,
                         vector<coord_def> &targs, bool random);
 
 bolt setup_targeting_beam(const monster &mons);
 
-bool cancel_beam_prompt(const bolt& beam, const player_beam_tracer& tracer,
-                        int beams_fired = 1);
+bool cancel_beam_prompt(const bolt& beam, const player_beam_tracer& tracer);
 
 int apply_willpower_bypass(const actor& source, int willpower);
 int apply_willpower_bypass(const monster_info& source, int willpower);

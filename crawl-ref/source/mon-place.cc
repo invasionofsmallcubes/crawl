@@ -1314,7 +1314,8 @@ static monster* _place_monster_aux(const mgen_data &mg, const monster *leader,
     // Keep random monsters created inside the Orb vault from passively
     // wandering out until the tesseracts are activated.
     bool needs_patrol = false;
-    if (mg.place == level_id(BRANCH_ZOT, 5) && !mg.is_summoned())
+    if (mg.place == level_id(BRANCH_ZOT, 5) && !mg.is_summoned()
+        && mg.behaviour != BEH_FRIENDLY)
     {
         const vault_placement *vp = dgn_vault_at(mon->pos());
         if (vp && vp->map_name_at(mon->pos()) == "hall_of_Zot")
@@ -2935,11 +2936,7 @@ monster* mons_place(mgen_data mg)
         mg.flags |= MG_PERMIT_BANDS;
 
     if (mg.behaviour == BEH_COPY)
-    {
-        mg.behaviour = (mg.summoner && mg.summoner->is_player())
-                        ? BEH_FRIENDLY
-                        : SAME_ATTITUDE(mg.summoner->as_monster());
-    }
+        mg.behaviour = SAME_ATTITUDE(mg.summoner);
 
     monster* creation = place_monster(mg);
     if (!creation)

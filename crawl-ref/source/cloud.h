@@ -80,7 +80,6 @@ bool place_cloud(cloud_type cl_type, const coord_def& ctarget,
                  bool do_conducts = true);
 
 void manage_clouds();
-void run_cloud_spreaders(int dur);
 string desc_cloud_damage(cloud_type cl_type, bool vs_player);
 void actor_apply_cloud(actor *act);
 bool actor_cloud_immune(const actor &act, const cloud_struct &cloud);

@@ -396,7 +396,7 @@ KMONS:  2 = gnoll ; halberd ego:draining | halberd ego:electrocution pre_id
 KMONS:  3 = orc warrior ; halberd ego:electrocution pre_id . plate armour / \
             orc knight ; halberd . leather armour
 KMONS:  4 = goblin rider
-KFEAT:  ^ = tyrant's trap
+KFEAT:  ^ = trap_tyrant
 KFEAT:  - = closed_clear_door
 NSUBST: d = 1:ddde / *:d, 1 = 7:1 / * = 1., 2 = 6:2 / * = 2.
 : item(dgn.loot_potions)
@@ -441,7 +441,7 @@ ITEM:    any good_item
 ITEM:    dart ego:atropa q:4 / dart ego:datura q:4
 : bailey_talisman_chance(_G, "f")
 KFEAT:   4 = W
-KFEAT:   - = tyrant's trap
+KFEAT:   - = trap_tyrant
 KFEAT:   _ = altar_trog / altar_okawaru / altar_makhleb
 SHUFFLE: qrs
 SUBST:   v : ccv, 2 = 2., ? : -., q = x, r : x.., s = .
@@ -505,8 +505,8 @@ ITEM:    potion of enlightenment pre_id, ring of flight pre_id
 ITEM:    pair of boots ego:flying pre_id
 : bailey_talisman_chance(_G, "X")
 KFEAT:   > = exit_bailey
-KFEAT:   ^ = alarm trap
-KFEAT:   - = tyrant's trap
+KFEAT:   ^ = trap_alarm
+KFEAT:   - = trap_tyrant
 NSUBST:  2 = 1:3 / * = 223., 4 = 1:4 / 1:443 / 1:223 / *:.
 SUBST:   e : eeef, g:eg
 NSUBST:  f = 1:f / *:e
@@ -941,7 +941,7 @@ KITEM:   h = stone q:1 no_pickup
 KITEM:   | = scroll of acquirement pre_id
 KITEM:   $ = gold
 : bailey_talisman_chance(_G, "i")
-KFEAT:   ^ = zot trap
+KFEAT:   ^ = trap_zot
 KFEAT:   B = altar_okawaru
 KFEAT:   g = cache_of_meat
 KFEAT:   4 = w

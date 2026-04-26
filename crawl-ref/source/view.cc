@@ -169,6 +169,20 @@ void view_update_at(const coord_def &pos)
 #endif
 }
 
+#ifdef USE_TILE
+static void _redraw_minimap(coord_def pos)
+{
+    tiles.update_minimap(pos);
+    // The explore horizon may have changed , so update adjacent minimap
+    // squares as well.
+    if (!player_in_branch(BRANCH_ABYSS))
+    {
+        for (adjacent_iterator ai(pos); ai; ++ai)
+            tiles.update_minimap(*ai);
+    }
+}
+#endif
+
 void redraw_view_at(coord_def pos)
 {
 #ifdef USE_TILE
@@ -179,6 +193,9 @@ void redraw_view_at(coord_def pos)
 #endif
 #ifndef USE_TILE_LOCAL
     _redraw_console_at(pos);
+#endif
+#ifdef USE_TILE
+    _redraw_minimap(pos);
 #endif
 }
 
@@ -400,7 +417,7 @@ static void _draw_player(screen_cell_t *cell,
     cell->tile.cloud = tile_env.bk_cloud(gc);
     cell->tile.icons = status_icons_for_player();
     if (anim_updates)
-        tile_apply_animations(cell->tile.bg, &tile_env.flv(gc));
+        tile_apply_animations(cell->tile.bg.tile(), &tile_env.flv(gc));
 #else
     UNUSED(anim_updates);
 #endif
@@ -421,7 +438,7 @@ static void _draw_los(screen_cell_t *cell,
     if (set<tileidx_t>* icons = map_find(tile_env.icons, gc))
         cell->tile.icons = *icons;
     if (anim_updates)
-        tile_apply_animations(cell->tile.bg, &tile_env.flv(gc));
+        tile_apply_animations(cell->tile.bg.tile(), &tile_env.flv(gc));
 #else
     UNUSED(anim_updates);
 #endif

@@ -661,7 +661,7 @@ NAME:   portal_ice_cave_entry_ice_statue_one
 TAGS:   no_monster_gen no_pool_fixup transparent
 : ice_cave_portal(_G)
 MONS:   ice statue
-KFEAT:  ^ = web trap
+KFEAT:  ^ = web
 : if you.in_branch("Swamp") then
 SUBST:  + = ., x = t
 : elseif you.in_branch("Shoals") then
@@ -984,7 +984,7 @@ KPROP:   yY'j = bloody
 : ice_cave_undead_demon_monster_set(_G)
 KMONS:   D = necromancer
 KFEAT:   _ = altar_kikubaaqudgha
-KFEAT:   ^ = alarm trap
+KFEAT:   ^ = trap_alarm
 KFEAT:   y = x
 KFEAT:   " = +
 # For the easy ice cave, necromancer + elephants as boss, second area gets a
@@ -1111,9 +1111,9 @@ xx............xxxsssxxxxxxx...xx
   xx---xxxxxxxxx...S..x.....xxxx
  xx-----xxxxxxxxx.xx.R...Sxxx
  x---A---xxxxxccccc.R.R.ccccc
- x-------xxxxxc...cccFccc...c
- xx--<--xxxxxxc.f...FEF...h.c
-  xx---xxxxxxxc...cc*i*cc...c
+ x-------xxxxxc*.$cccFccc$.*c
+ xx--<--xxxxxxc.....FEF.....c
+  xx---xxxxxxxcf.$cc*i*cc$.hc
    xxxxxxxxxxxcccccccbccccccc
          xxxxx
 ENDMAP

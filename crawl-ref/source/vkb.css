@@ -1,0 +1,173 @@
+/* Virtual keyboard overlay — fixed bar at the bottom of the viewport */
+#vkb-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 45vh;
+    background: #111;
+    border-top: 2px solid #333;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px;
+    z-index: 1000;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Push page content above the fixed VKB overlay.
+   Tiles: prevents canvas from being hidden behind VKB.
+   ASCII: term-wrap height is set by JS so this mainly covers the toggle btn. */
+body.vkb-active {
+    padding-bottom: 46vh;
+}
+/* Scale the tiles canvas further when VKB is active so both fit on screen */
+body.vkb-active #canvas {
+    max-height: 52vh;
+    width: auto;
+    max-width: 100%;
+}
+
+/* D-pad: 3×3 grid, square, sized at ~28% of overlay width so it stays
+   compact and leaves the action panel plenty of room. */
+#vkb-dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 3px;
+    width: 28%;
+    aspect-ratio: 1;
+    height: auto;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+/* Actions panel fills remaining width */
+#vkb-actions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* Category tab strip */
+#vkb-tabs {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+#vkb-tabs::-webkit-scrollbar { display: none; }
+
+.vkb-tab {
+    background: #1e1e1e;
+    color: #888;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+.vkb-tab.active {
+    background: #1a2e1a;
+    color: #7f7;
+    border-color: #3a5a3a;
+}
+
+/* Action button grid */
+#vkb-buttons {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-content: flex-start;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+#vkb-buttons::-webkit-scrollbar { display: none; }
+
+/* Base button style */
+.vkb-btn {
+    background: #1a1a1a;
+    color: #ccc;
+    border: 1px solid #444;
+    border-radius: 6px;
+    min-width: 48px;
+    min-height: 44px;
+    font-size: 13px;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.08s;
+}
+.vkb-btn:active {
+    background: #2a2a2a;
+    border-color: #666;
+}
+
+/* D-pad cells fill their grid cell fully */
+.vkb-dpad-btn {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    font-size: 16px;
+    border-radius: 4px;
+    padding: 0;
+}
+
+/* The center "wait" cell is slightly dimmer to distinguish it */
+.vkb-dpad-btn.vkb-wait {
+    color: #666;
+    font-size: 16px;
+}
+
+/* Toggle button — always visible, floats above page or above VKB */
+#vkb-toggle {
+    position: fixed;
+    bottom: 8px;
+    right: 8px;
+    z-index: 1001;
+    background: #222;
+    color: #888;
+    border: 1px solid #444;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: bottom 0.15s;
+}
+body.vkb-active #vkb-toggle {
+    bottom: calc(45vh + 8px);
+}
+
+/* Landscape: shorter VKB, toggle repositioned */
+@media (orientation: landscape) {
+    #vkb-overlay {
+        height: 38vh;
+    }
+    body.vkb-active {
+        padding-bottom: 39vh;
+    }
+    body.vkb-active #vkb-toggle {
+        bottom: calc(38vh + 8px);
+    }
+}

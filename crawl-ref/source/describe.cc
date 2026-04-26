@@ -907,80 +907,6 @@ static string _artefact_descrip(const item_def &item)
     return out.str();
 }
 
-static const char *trap_names[] =
-{
-#if TAG_MAJOR_VERSION == 34
-    "harlequin's", "archmage's", "spear",
-#endif
-#if TAG_MAJOR_VERSION > 34
-    "tyrant's",
-    "archmage's",
-    "harlequin's",
-    "devourer's",
-    "dispersal",
-    "teleport",
-#endif
-    "permanent teleport",
-    "alarm",
-#if TAG_MAJOR_VERSION == 34
-    "tyrant's", "bolt",
-#endif
-    "net",
-    "Zot",
-#if TAG_MAJOR_VERSION == 34
-    "devourer's",
-#endif
-    "shaft",
-    "passage",
-    "pressure plate",
-    "web",
-#if TAG_MAJOR_VERSION == 34
-    "gas", "teleport", "shadow", "dormant shadow", "dispersal"
-#endif
-};
-
-string trap_name(trap_type trap)
-{
-    COMPILE_CHECK(ARRAYSZ(trap_names) == NUM_TRAPS);
-
-    if (trap >= 0 && trap < NUM_TRAPS)
-        return trap_names[trap];
-    return "";
-}
-
-string full_trap_name(trap_type trap)
-{
-    string basename = trap_name(trap);
-    switch (trap)
-    {
-    case TRAP_GOLUBRIA:
-        return basename + " of Golubria";
-    case TRAP_PLATE:
-    case TRAP_WEB:
-    case TRAP_SHAFT:
-        return basename;
-    default:
-        return basename + " trap";
-    }
-}
-
-int str_to_trap(const string &s)
-{
-    // "Zot trap" is capitalised in trap_names[], but the other trap
-    // names aren't.
-    const string tspec = lowercase_string(s);
-
-    // allow a couple of synonyms
-    if (tspec == "random" || tspec == "any")
-        return TRAP_RANDOM;
-
-    for (int i = 0; i < NUM_TRAPS; ++i)
-        if (tspec == lowercase_string(trap_names[i]))
-            return i;
-
-    return -1;
-}
-
 /**
  * How should this panlord be described?
  *
@@ -3376,6 +3302,15 @@ void get_feature_desc(const coord_def &pos, describe_info &inf, bool include_ext
                 desc_the.c_str(),
                 command_to_string(CMD_GO_DOWNSTAIRS).c_str());
     }
+    else if (feat == DNGN_SPIKE_LAUNCHER)
+    {
+        map_active_feature_marker* mark = env.markers.get_active_feature_at(pos, DNGN_SPIKE_LAUNCHER);
+        if (mark)
+        {
+            dice_def dmg = zap_damage(ZAP_SPIKE_LAUNCHER, mark->power, mark->owner != MID_PLAYER, false);
+            long_desc += make_stringf("\nIt does %dd%d damage.", dmg.num, dmg.size);
+        }
+    }
 
     // mention that permanent trees are usually flammable
     // (except for autumnal trees in Wucad Mu's Monastery)
@@ -3631,8 +3566,7 @@ bool describe_feature_wide(const coord_def& pos, bool do_actions)
 void describe_feature_type(dungeon_feature_type feat)
 {
     describe_info inf;
-    string name = feature_description(feat, NUM_TRAPS, "", DESC_A,
-                                      NUM_BRANCHES);
+    string name = feature_description(feat, "", DESC_A, NUM_BRANCHES);
     string title = uppercase_first(name);
     if (!ends_with(title, ".") && !ends_with(title, "!") && !ends_with(title, "?"))
         title += ".";
@@ -5412,7 +5346,9 @@ static void _attacks_table_row(const monster_info &mi, mon_attack_desc_info &di,
         // From attack::calc_damage
         // damage = 1 + random2(monster attack damage)
         //          + random2(weapon damage) + random2(1 + enchant + slay)
-        const int base_dam = property(*wpn, PWPN_DAMAGE);
+        // (HACK?: Bake in the athame debuff roll into the max display.)
+        int base_dam = (wpn->sub_type == WPN_ATHAME) ? property(*wpn, PWPN_DAMAGE) + 4:
+                                                       property(*wpn, PWPN_DAMAGE);
         dam += brand_adjust_weapon_damage(base_dam, get_weapon_brand(*wpn), false) - 1;
         if (ranged && mons_class_flag(mi.type, M_ARCHER))
             dam += archer_bonus_damage(mi.hd);
@@ -6621,6 +6557,14 @@ static string _desc_shooting_star_dam(const monster_info &mi)
     return make_stringf("%dd%d", beam.damage.num, beam.damage.size);
 }
 
+static string _desc_splinterfrost_dam(const monster_info &mi)
+{
+    bolt beam;
+    const int pow = mi.props[SPLINTERFROST_POWER_KEY].get_int();
+    zappy(ZAP_SPLINTERFROST_FRAGMENT, pow, mi.summoner_id != MID_PLAYER, beam);
+    return make_stringf("%dd%d", beam.damage.num, beam.damage.size);
+}
+
 // Fetches the monster's database description and reads it into inf.
 void get_monster_db_desc(const monster_info& mi, describe_info &inf,
                          bool &has_stat_desc, bool mark_spells)
@@ -6734,6 +6678,10 @@ void get_monster_db_desc(const monster_info& mi, describe_info &inf,
 
     case MONS_SHOOTING_STAR:
         inf.body << "\nIt deals " << _desc_shooting_star_dam(mi) << " damage.\n";
+        break;
+
+    case MONS_SPLINTERFROST_BARRICADE:
+        inf.body << "\nIt deals " << _desc_splinterfrost_dam(mi) << " damage when destroyed.\n";
         break;
 
     case MONS_PROGRAM_BUG:
@@ -7142,20 +7090,20 @@ int describe_monster(const monster_info &mi, const string& /*footer*/)
     write_spellset(spells, nullptr, &mi);
 
     {
-        tileidx_t t    = tileidx_monster(mi);
-        tileidx_t t0   = t & TILE_FLAG_MASK;
-        tileidx_t flag = t & (~TILE_FLAG_MASK);
+        tile_with_flags_t t = tileidx_monster(mi);
+        tileidx_t t0 = t.tile();
+        tile_flag_t flag = t.flags();
 
         if (!mons_class_is_stationary(mi.type) || mi.type == MONS_TRAINING_DUMMY)
         {
             tileidx_t mcache_idx = mcache.register_monster(mi);
-            t = flag | (mcache_idx ? mcache_idx : t0);
-            t0 = t & TILE_FLAG_MASK;
+            t0 = mcache_idx ? mcache_idx : t0;
+            t.set_tile(t0);
         }
 
         tiles.json_write_int("fg_idx", t0);
         tiles.json_write_name("flag");
-        tiles.write_tileidx(flag);
+        tiles.write_tile_with_flags(flag);
         tiles.json_write_icons(status_icons_for(mi));
 
         if (t0 >= TILEP_MCACHE_START)

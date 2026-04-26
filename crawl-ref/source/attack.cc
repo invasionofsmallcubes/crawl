@@ -44,6 +44,7 @@
 #include "spl-summoning.h"
 #include "spl-util.h"
 #include "state.h"
+#include "status.h"  // debuffed_target
 #include "stepdown.h"
 #include "stringutil.h"
 #include "tag-version.h"
@@ -60,7 +61,7 @@ attack::attack(actor *attk, actor *defn, actor *blame)
       cancel_attack(false), did_hit(false),
       needs_message(false), attacker_visible(false), defender_visible(false),
       perceived_attack(false), obvious_effect(false), to_hit(0),
-      damage_done(0), special_damage(0), aux_damage(0),
+      damage_done(0), special_damage(0), aux_damage(0), total_damage_done(0),
       special_damage_flavour(BEAM_NONE),
       stab_attempt(false), stab_bonus(0), ev_margin(0), weapon(nullptr),
       damage_brand(SPWPN_NORMAL), wpn_skill(SK_UNARMED_COMBAT),
@@ -68,6 +69,7 @@ attack::attack(actor *attk, actor *defn, actor *blame)
       attacker_to_hit_penalty(0), attack_verb("bug"), verb_degree(),
       no_damage_message(), special_damage_message(), aux_attack(), aux_verb(),
       defender_shield(nullptr), simu(false),
+      dmg_mult(0), flat_dmg_bonus(0), to_hit_bonus(0),
       aux_source(""), kill_type(KILLED_BY_MONSTER)
 {
     // No effective code should execute, we'll call init_attack again from
@@ -248,6 +250,8 @@ int attack::post_roll_to_hit_modifiers(int mhit, bool /*random*/)
     // Penalties for both players and monsters:
     modifiers -= attacker->inaccuracy_penalty();
 
+    modifiers += to_hit_bonus;
+
     if (attacker->confused())
         modifiers += CONFUSION_TO_HIT_MALUS;
 
@@ -426,6 +430,17 @@ void attack::init_attack(int attack_number)
     }
 }
 
+// Copy over initial attack parameters (ie: things that must be defined before
+// attack() or launch_attack_set() are called). Things calculated after that
+// point should not be copied.
+void attack::copy_params_to(attack &other) const
+{
+    other.dmg_mult              = dmg_mult;
+    other.flat_dmg_bonus        = flat_dmg_bonus;
+    other.to_hit_bonus          = to_hit_bonus;
+    other.simu                  = simu;
+}
+
 void attack::alert_defender()
 {
     // Allow monster attacks to draw the ire of the defender. Player
@@ -444,7 +459,7 @@ void attack::alert_defender()
 
     // If an enemy attacked a friend, set the pet target if it isn't set already.
     if (perceived_attack && attacker->alive()
-        && (defender->is_player() || defender->as_monster()->friendly())
+        && defender->friendly()
         && !attacker->is_player()
         && !crawl_state.game_is_arena()
         && !attacker->as_monster()->wont_attack())
@@ -676,7 +691,7 @@ void attack::drain_defender_speed()
     defender->slow_down(attacker, 5 + random2(7));
 }
 
-int attack::inflict_damage(int dam, beam_type flavour, bool clean)
+int attack::inflict_damage(int dam, beam_type flavour)
 {
     if (flavour == NUM_BEAMS)
         flavour = special_damage_flavour;
@@ -691,10 +706,12 @@ int attack::inflict_damage(int dam, beam_type flavour, bool clean)
         defender->props[REAPER_KEY].get_int() = attacker->mid;
     }
     const int final = defender->hurt(responsible, dam, flavour, kill_type,
-                                     "", aux_source.c_str(), clean);
+                                     "", aux_source.c_str(), false);
 
     if (defender->is_monster() && !defender->alive())
         defender->props[ATTACK_KILL_KEY] = true;
+
+    total_damage_done += final;
 
     return final;
 }
@@ -806,6 +823,8 @@ string attack::defender_name(bool allow_reflexive)
 
 int attack::player_apply_misc_modifiers(int damage)
 {
+    damage += flat_dmg_bonus;
+
     return damage;
 }
 
@@ -864,6 +883,9 @@ int attack::player_apply_final_multipliers(int damage, bool /*aux*/)
     if (attacker->type == MONS_SPECTRAL_WEAPON)
         damage = div_rand_round(damage * 7, 10);
 
+    if (dmg_mult)
+        damage = damage * (100 + dmg_mult) / 100;
+
     return damage;
 }
 
@@ -910,9 +932,47 @@ int attack::calc_base_unarmed_damage() const
     return dam > 0 ? dam : 0;
 }
 
+// Count the number of debuffs the target has. Since we're not using it for
+// anything other than athame stacks, only count up to two.
+int attack::target_debuff_count() const
+{
+    int debuff_count = 0;
+    if (defender->is_monster())
+    {
+        mon_enchant_list ec = defender->as_monster()->enchantments;
+        for (auto &entry : ec)
+        {
+            if (ench_triggers_trickster(entry.first))
+            {
+                if (++debuff_count >= 2)
+                    break;
+            }
+        }
+    }
+    else
+    {
+        for (unsigned int i = 0; i < NUM_DURATIONS; ++i)
+        {
+            // Until monsters use this any more notably against players,
+            // most of the asymmetries here outside of poison are fine.
+            if (you.duration[i] > 0 && duration_negative((duration_type)i)
+                && i != DUR_POISONING)
+            {
+                if (++debuff_count >= 2)
+                    break;
+            }
+        }
+    }
+    return debuff_count;
+}
+
 int attack::adjusted_weapon_damage() const
 {
-    return brand_adjust_weapon_damage(weapon_damage(), damage_brand, true);
+    int wdamage = weapon_damage();
+    if (weapon && weapon->is_type(OBJ_WEAPONS, WPN_ATHAME))
+        wdamage = wdamage + target_debuff_count() * 2; // up to 66% of base 6 damage!
+
+    return brand_adjust_weapon_damage(wdamage, damage_brand, true);
 }
 
 int attack::calc_damage()
@@ -938,7 +998,7 @@ int attack::calc_damage()
         damage_max += attk_damage;
         damage     += 1 + random2(attk_damage);
 
-        damage = apply_damage_modifiers(damage);
+        damage = apply_mon_damage_modifiers(damage);
 
         set_attack_verb(damage);
         return apply_defender_ac(damage, damage_max);
@@ -1477,6 +1537,13 @@ int attack::player_stab(int damage)
             int& stacks = you.props[DEVIOUS_KEY].get_int();
             stacks = min(stacks + 1, 3);
             you.redraw_evasion = true;
+        }
+
+        if (you.has_mutation(MUT_SOUTH_WIND) && !defender->wont_attack())
+        {
+            if (!you.duration[DUR_TAILWIND])
+                mprf(MSGCH_DURATION, "The winds around you quicken.");
+            you.duration[DUR_TAILWIND] = max(you.duration[DUR_TAILWIND], random_range(50, 90));
         }
     }
     else

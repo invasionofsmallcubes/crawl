@@ -655,6 +655,9 @@ enum weapon_type
     WPN_QUICK_BLADE,
     WPN_SHORT_SWORD,
     WPN_RAPIER,
+#if TAG_MAJOR_VERSION > 34
+    WPN_ATHAME,
+#endif
 
     WPN_FALCHION,
     WPN_LONG_SWORD,
@@ -739,6 +742,7 @@ enum weapon_type
     WPN_CUTLASS,
     WPN_ORCBOW,
     WPN_PARTISAN,
+    WPN_ATHAME,
 #endif
 
     NUM_WEAPONS,

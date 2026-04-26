@@ -31,6 +31,7 @@ msc += $danger:cause instant excommunication
 msc += $danger:corrodes you
 msc += $danger:Your body becomes as fragile as glass
 msc += lightmagenta:malevolent force fills
+msc += lightmagenta:too known and too boring
 
 # Less urgent, but still significant messages
 #
@@ -65,6 +66,8 @@ msc += $warning:whistling.*wind
 msc += $warning:rapidly growing quiet
 msc += $warning:slides
 msc += $warning:settles down
+msc += white:There is a(n entrance| portal| gateway) to.*on this level
+msc += white:caravan has stopped on this level
 
 msc += lightcyan:LOW MAGIC WARNING
 msc += $warning:no longer ripe
@@ -107,6 +110,7 @@ force_more_message += create your gizmo
 force_more_message += malevolent force fills
 force_more_message += malevolence running through your instability
 force_more_message += You feel space start to destabilise
+force_more_message += You feel the winds around you beginning to shift
 
 ## Zot is coming!
 force_more_message += You have lingered too long
@@ -122,15 +126,7 @@ force_more_message += ^Careful!
 
 # Announcements of timed portal vaults:
 force_more_message += interdimensional caravan
-force_more_message += solemn chanting
-force_more_message += distant snort
-force_more_message += roar of battle
-force_more_message += wave of frost
-force_more_message += hiss of flowing sand
-force_more_message += sound of rushing water
-force_more_message += oppressive heat about you
-force_more_message += crackle of arcane power
-force_more_message += hear a distant wind
+force_more_message += There is a(n entrance| portal| gateway) to.*on this level
 force_more_message += Beware! This is a limited time offer
 
 # Religion
@@ -203,6 +199,7 @@ force_more_message += Beogh speaks to you:
 
 # Xom doing things you really shouldn't miss
 force_more_message += is forced to slowly start .* word of recall
+force_more_message += too known and too boring
 
 # Crucible exit notification
 force_more_message += Makhleb acknowledges your contrition

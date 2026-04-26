@@ -333,7 +333,7 @@ TAGS: sprint_mu_d1 no_rotate no_hmirror no_vmirror
 MONS: ogre, two-headed ogre
 MONS: Erolcha
 MONS: redback
-KFEAT: ~ = net trap
+KFEAT: ~ = trap_net
 NSUBST: ^ = 2:4 / 10:~ / *:.
 KFEAT: &# = runed_door
 : lua_marker('#', props_marker {
@@ -962,8 +962,8 @@ KMONS: 6 = patrolling place:Depths:$ zombie
 KMONS: 7 = patrolling place:Depths:$ simulacrum
 SUBST: 1 = 1122334455667
 KITEM: 1234567 = star_item / nothing
-KFEAT: ^ = zot trap
-KFEAT: - = net trap
+KFEAT: ^ = trap_zot
+KFEAT: - = trap_net
 NSUBST: ~ = 2:^ / 2:- / *:.
 SUBST:  ! = +
 MAP
@@ -1018,7 +1018,7 @@ NAME: sprint_mu_tomb_spiral
 TAGS: sprint_mu_tomb no_rotate no_hmirror no_vmirror
 MONS: patrolling royal mummy, patrolling mummy priest
 MONS: patrolling guardian mummy, patrolling guardian sphinx
-KFEAT: - = net trap / zot trap / floor w:40
+KFEAT: - = trap_net / trap_zot / floor w:40
 SUBST: . = -----.................332
 KITEM: $ = golden rune of zot
 KITEM: ? = scroll of acquirement pre_id q:5
@@ -1080,7 +1080,7 @@ KMONS: 8 = patrolling nikola
 KMONS: A = col:magenta plant / w:2 deep elf blademaster
 KMONS: B = col:lightmagenta plant
 SUBST: A = AAB
-KFEAT: AB = zot trap w:2 / floor
+KFEAT: AB = trap_zot w:2 / floor
 KMONS: i = patrolling glass eye
 KMONS: j = patrolling golden eye
 KMONS: k = patrolling shining eye
@@ -1106,7 +1106,7 @@ KMONS: G = iron troll simulacrum hd:20 exp:445
 KMONS: I = patrolling vault guard / patrolling orc knight / patrolling draconian knight /\
  patrolling deep elf knight
 KITEM: % = quad damage
-KFEAT: % = zot trap
+KFEAT: % = trap_zot
 KFEAT: J = deep_water
 SUBST: J = Jh
 KFEAT: h = deep_water
@@ -1114,7 +1114,7 @@ KMONS: h = electric eel
 KMONS: K = executioner
 KMONS: M = patrolling yaktaur ; wand of warping charges:2
 KMONS: N = patrolling nessos
-KFEAT: ^ = net trap
+KFEAT: ^ = trap_net
 KFEAT: " = floor
 COLOUR: " = yellow
 MARKER: L = lua:fog_machine { \
@@ -1356,7 +1356,7 @@ MARKER: T = lua:fog_machine { \
         pow_max = 15, delay_min = 100, delay_max = 150, \
         size = 2, size_buildup_amnt = 29, \
         size_buildup_time = 1000, cloud_type = "mutagenic fog" }
-KFEAT: T = zot trap
+KFEAT: T = trap_zot
 KMONS: * = orb of fire
 MONS: Tiamat, yellow draconian stormcaller / yellow draconian shifter
 MONS: white draconian scorcher
@@ -1396,7 +1396,7 @@ lua_marker('q', mon_list_marker)
 }}
 SUBST: A = ^
 NSUBST: a = 1:+ / *:X
-KFEAT: - = zot trap
+KFEAT: - = trap_zot
 NSUBST: ^ = 3:- / *:.
 KMONS: k = killer klown
 KMONS: A = plant col:magenta

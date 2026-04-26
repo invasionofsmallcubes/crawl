@@ -13,7 +13,7 @@ Mace of Variability
 
 È decisamente inaffidabile.
 %%%%
-Glaive of Prune
+partisan of Prune
 
 È la creazione di un dio pazzo, e porta una maledizione che trasforma chiunque
 la usi in una prugna. Per fortuna, la maledizione fa effetto molto lentamente,
@@ -237,7 +237,7 @@ amulet of Cekugob
 Un strano pezzo di cristallo su uno stano filo, dotato di una strana selezione
 di poteri.
 %%%%
-amulet of the Four Winds
+amulet of Tranquility
 
 Questo pendente fatto della giada più pura da al suo indossatore un'immensa
 forza mistica per ignorare la magia ostile.

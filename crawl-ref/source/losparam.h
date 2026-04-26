@@ -149,6 +149,17 @@ public:
 };
 extern const opacity_no_actor opc_no_actor;
 
+// Make any actor the player can see, but cannot shoot through
+// (as well as all solid features) block.
+class opacity_unblocked_shot : public opacity_func
+{
+public:
+    CLONE(opacity_unblocked_shot)
+
+    opacity_type operator()(const coord_def& p) const override;
+};
+extern const opacity_unblocked_shot opc_unblocked_shot;
+
 // For the exclusion and map opacity types based on player map knowledge, an
 // unknown cell is considered clear.
 class opacity_excl : public opacity_func

@@ -170,7 +170,8 @@ public:
                       string source = "",
                       string aux = "",
                       bool cleanup_dead = true,
-                      bool attacker_effects = true) = 0;
+                      bool attacker_effects = true,
+                      bool is_attack_damage = false) = 0;
     virtual bool heal(int amount) = 0;
     virtual void banish(const actor *agent, const string &who = "",
                         bool force = false) = 0;
@@ -347,8 +348,6 @@ public:
 
     virtual bool liquefied_ground() const = 0;
 
-    virtual bool handle_trap();
-
     virtual void god_conduct(conduct_type /*thing_done*/, int /*level*/) { }
 
     virtual bool incapacitated() const
@@ -362,6 +361,9 @@ public:
     virtual bool wont_attack() const = 0;
     virtual mon_attitude_type temp_attitude() const = 0;
     virtual mon_attitude_type real_attitude() const = 0;
+    bool friendly() const;
+    bool neutral() const;
+    bool good_neutral() const;
 
     virtual bool has_spell(spell_type spell) const = 0;
 

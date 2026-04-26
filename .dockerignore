@@ -1,0 +1,21 @@
+# Whitelist: include only what the deploy Dockerfile needs. The repo is
+# enormous (1900 .cc files, contrib/, dat/, .venv/, intermediate build
+# artifacts, etc.); shipping all of it as build context would bloat the
+# upload to fly.io's remote builder for no reason.
+**
+
+!deploy/Dockerfile
+!deploy/Caddyfile
+
+!crawl-ref/source/index.html
+!crawl-ref/source/ascii.html
+!crawl-ref/source/tiles.html
+!crawl-ref/source/index_tiles.html
+!crawl-ref/source/vkb.js
+!crawl-ref/source/vkb.css
+!crawl-ref/source/crawl.js
+!crawl-ref/source/crawl.wasm
+!crawl-ref/source/crawl.data
+!crawl-ref/source/crawl_tiles.js
+!crawl-ref/source/crawl_tiles.wasm
+!crawl-ref/source/crawl_tiles.data

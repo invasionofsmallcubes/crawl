@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCSS Tiles — WebAssembly</title>
+<style>
+  body { margin: 0; background: #000; color: #c0c0c0;
+         font: 13px monospace; overflow-x: hidden; }
+  #status { padding: 6px 10px; border-bottom: 1px solid #222; }
+  /* Scale canvas to fit viewport width while keeping 1024:768 aspect ratio.
+     The HTML width/height attributes stay at 1024×768 (WebGL viewport);
+     CSS width/height only affect the display size. */
+  #canvas { display: block; border: 0; outline: none;
+            width: 100%; max-width: 1024px; height: auto;
+            aspect-ratio: 1024 / 768; margin: 0 auto; background: #000; }
+  #canvas:focus { outline: 1px solid #335; }
+</style>
+</head>
+<body>
+<div id="status">Loading DCSS Tiles…</div>
+<canvas id="canvas" tabindex="-1" width="1024" height="768"></canvas>
+<script>
+window.DCSS_MODE = 'tiles';
+
+// Intercept addEventListener BEFORE crawl_tiles.js so we can capture SDL2's
+// internal keyboard handlers (Emscripten's JSEvents registry is private to
+// the crawl_tiles.js IIFE, so we can't reach it after the fact). vkb.js
+// invokes the captured handlers directly with synthetic events, bypassing
+// DOM dispatch quirks (Chrome's read-only keyCode, bubbling target choice).
+window.__vkbKeyListeners = [];
+(function () {
+    var origAdd = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, listener, opts) {
+        if (type === 'keydown' || type === 'keyup' || type === 'keypress') {
+            window.__vkbKeyListeners.push({ type: type, listener: listener });
+        }
+        return origAdd.apply(this, arguments);
+    };
+})();
+
+// SDL2's Emscripten port reads Module.canvas and routes DOM keyboard/mouse
+// events to SDL_PollEvent / SDL_WaitEventTimeout. ASYNCIFY (set in
+// Makefile.emscripten-tiles) lets wm->wait_event() suspend cleanly while the
+// browser pumps events.
+//
+// IDBFS save persistence is handled by fs_init.js (wired via --pre-js).
+window.Module = {
+    canvas: document.getElementById('canvas'),
+    arguments: ['-dir', '/crawl'],
+
+    print: function(t) { console.log('[stdout]', t); },
+    printErr: function(t) { console.warn('[stderr]', t); },
+
+    onAbort: function(what) {
+        document.getElementById('status').textContent = 'DCSS ABORTED: ' + what;
+        console.error('[dcss] onAbort:', what);
+    },
+
+    onRuntimeInitialized: function() {
+        document.getElementById('status').textContent =
+            'DCSS Tiles running — click the canvas and start playing';
+        document.getElementById('canvas').focus();
+    },
+
+    onExit: function(code) {
+        console.error('[dcss] exited with code', code);
+        try { FS.syncfs(false, function(e) {}); } catch (e) {}
+    }
+};
+
+window.addEventListener('beforeunload', function() {
+    try { FS.syncfs(false, function(e) {}); } catch (e) {}
+});
+</script>
+<script src="crawl_tiles.js"></script>
+<script src="vkb.js"></script>
+</body>
+</html>

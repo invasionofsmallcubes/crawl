@@ -15,7 +15,6 @@
 #include "enum.h"
 #include "mon-util.h"
 #include "tag-version.h"
-#include "trap-type.h"
 
 struct monster_info;
 
@@ -122,10 +121,6 @@ const char* get_size_adj(const size_type size, bool ignore_medium = false);
 const char* jewellery_base_ability_string(int subtype);
 string artefact_inscription(const item_def& item);
 void add_inscription(item_def &item, string inscrip);
-
-string trap_name(trap_type trap);
-string full_trap_name(trap_type trap);
-int str_to_trap(const string &s);
 
 string extra_cloud_info(cloud_type cloud_type);
 

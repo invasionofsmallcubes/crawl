@@ -726,6 +726,9 @@
     <ClCompile Include="..\l-dgn.cc">
       <Filter>cc</Filter>
     </ClCompile>
+    <ClCompile Include="..\l-autofight.cc">
+      <Filter>cc</Filter>
+    </ClCompile>
     <ClCompile Include="..\l-crawl.cc">
       <Filter>cc</Filter>
     </ClCompile>
@@ -2138,13 +2141,7 @@
     <ClInclude Include="..\transformation.h">
       <Filter>h</Filter>
     </ClInclude>
-    <ClInclude Include="..\trap-def.h">
-      <Filter>h</Filter>
-    </ClInclude>
     <ClInclude Include="..\traps.h">
-      <Filter>h</Filter>
-    </ClInclude>
-    <ClInclude Include="..\trap-type.h">
       <Filter>h</Filter>
     </ClInclude>
     <ClInclude Include="..\travel.h">
@@ -2306,6 +2303,9 @@
       <Filter>h</Filter>
     </ClInclude>
     <ClInclude Include="..\mon-aura.h">
+      <Filter>h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tile-env.h">
       <Filter>h</Filter>
     </ClInclude>
     <ClInclude Include="..\rltiles\status-icon-sizes.h">

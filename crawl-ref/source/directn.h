@@ -12,7 +12,6 @@
 #include "mon-info.h"
 #include "targ-mode-type.h"
 #include "targeting-type.h"
-#include "trap-type.h"
 #include "view.h"
 
 using std::vector;
@@ -77,6 +76,8 @@ struct direction_chooser_args
     bool try_multizap;
     bool unrestricted; // for wizmode
     bool allow_shift_dir;
+    bool is_ranged_attack;
+    bool is_piercing;
     confirm_prompt_type self;
     const char *target_prefix;
     string top_prompt;
@@ -97,6 +98,8 @@ struct direction_chooser_args
         try_multizap(false),
         unrestricted(false),
         allow_shift_dir(true),
+        is_ranged_attack(false),
+        is_piercing(false),
         self(confirm_prompt_type::prompt),
         target_prefix(nullptr),
         behaviour(nullptr),
@@ -281,6 +284,12 @@ private:
     bool show_floor_desc;       // Describe the floor of the current target
     bool show_boring_feats;
     targeter *hitfunc;         // Determine what would be hit.
+    bool is_ranged_attack;     // Is this a launcher/throwing attack being aimed?
+    bool is_piercing;          // If a ranged attack, does it penetrate targets?
+    bool is_autotargeting;     // True if this is getting a default target
+                               // non-interactively which using autofight with
+                               // quivered spells (and thus we should be more
+                               // stringent about only returning useful paths).
     coord_def default_place;    // Start somewhere other than you.pos()?
 
     // Internal data.
@@ -317,6 +326,9 @@ private:
     bool need_cursor_redraw;
     bool need_text_redraw;
     bool need_all_redraw;       // All of the above.
+
+    // Whether the player has moved the cursor themselves.
+    bool player_changed_target;
 
     // Default behaviour, saved across instances.
     static targeting_behaviour stock_behaviour;
@@ -364,7 +376,6 @@ string feature_description_at(const coord_def& where, bool covering = false,
                               description_level_type dtype = DESC_A);
 string raw_feature_description(const coord_def& where);
 string feature_description(dungeon_feature_type grid,
-                           trap_type trap = NUM_TRAPS,
                            const string & cover_desc = "",
                            description_level_type dtype = DESC_A,
                            level_id place = level_id::current());

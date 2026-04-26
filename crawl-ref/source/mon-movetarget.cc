@@ -225,7 +225,7 @@ static bool _is_level_exit(const coord_def& pos)
         return true;
 
     // Shaft traps.
-    if (get_trap_type(pos) == TRAP_SHAFT)
+    if (env.grid(pos) == DNGN_TRAP_SHAFT)
         return true;
 
     return false;

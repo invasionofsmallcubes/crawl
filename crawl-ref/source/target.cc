@@ -292,6 +292,7 @@ aff_type targeter_beam::is_affected(coord_def loc)
     int visit_count = 0;
     coord_def c;
     aff_type current = AFF_YES;
+    aff_type initial = AFF_YES;
     for (auto pc : path_taken)
     {
         if (cell_is_solid(pc)
@@ -306,6 +307,7 @@ aff_type targeter_beam::is_affected(coord_def loc)
         if (c == loc)
         {
             visit_count++;
+            initial = current;
             if (max_expl_rad > 0)
                 on_path = true;
             else if (cell_is_solid(pc))
@@ -326,7 +328,11 @@ aff_type targeter_beam::is_affected(coord_def loc)
             // We assume an exploding spell will always stop here.
             if (max_expl_rad > 0)
                 break;
-            current = AFF_MAYBE;
+
+            if (monster_at(pc) && monster_at(pc)->is_firewood())
+                current = AFF_BAD;
+            else if (current != AFF_BAD)
+                current = AFF_MAYBE;
         }
     }
     if (max_expl_rad > 0)
@@ -352,8 +358,8 @@ aff_type targeter_beam::is_affected(coord_def loc)
     }
 
     return visit_count == 0 ? AFF_NO :
-           visit_count == 1 ? AFF_YES :
-                              AFF_MULTIPLE;
+           visit_count == 1 ? initial
+                            : AFF_MULTIPLE;
 }
 
 bool targeter_beam::affects_monster(const monster_info& mon)
@@ -1156,52 +1162,6 @@ aff_type targeter_cloud::is_affected(coord_def loc)
 bool targeter_cloud::harmful_to_player()
 {
     return !actor_cloud_immune(you, ctype);
-}
-
-
-targeter_splash::targeter_splash(const actor *act, int r, int pow)
-    : targeter_beam(act, r, ZAP_COMBUSTION_BREATH, pow, 0, 0)
-{
-}
-
-aff_type targeter_splash::is_affected(coord_def loc)
-{
-    bool on_path = false;
-    coord_def c;
-    for (auto pc : path_taken)
-    {
-        if (cell_is_invalid_target(pc))
-            break;
-
-        c = pc;
-        if (pc == loc)
-            on_path = true;
-
-        if (anyone_there(pc) && !beam.ignores_monster(monster_at(pc)))
-            break;
-    }
-
-    if (loc == c)
-        return AFF_YES;
-
-    // self-spit doesn't splash
-    if (aim == origin)
-        return AFF_NO;
-
-    // it splashes around only upon hitting someone
-    if (anyone_there(c))
-    {
-        if (grid_distance(loc, c) > 1)
-            return on_path ? AFF_YES : AFF_NO;
-
-        // you're safe from being splashed by own spit
-        if (loc == origin)
-            return AFF_NO;
-
-        return anyone_there(loc) ? AFF_YES : AFF_MAYBE;
-    }
-
-    return on_path ? AFF_YES : AFF_NO;
 }
 
 targeter_radius::targeter_radius(const actor *act, los_type _los,

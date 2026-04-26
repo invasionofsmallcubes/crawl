@@ -1058,6 +1058,10 @@ unseen thermic dynamo cast
 
 You hear a violent whirl.
 %%%%
+thorn hunter cast
+
+@The_monster@ reaches out with @possessive@ roots.
+%%%%
 thrashing horror cast
 
 @The_monster@ churns violently!

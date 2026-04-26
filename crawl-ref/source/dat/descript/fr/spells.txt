@@ -794,7 +794,7 @@ Summon Swarm spell
 
 Ce sort convoque un essaim pestilentiel.
 %%%%
-Summon Ufetubus spell
+Ufetubi Swarm spell
 
 Ce sort convoque plein d'ufetubi, petits démons ennuyeux se pressant autour de
 vous.
