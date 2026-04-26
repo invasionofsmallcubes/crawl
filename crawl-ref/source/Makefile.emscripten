@@ -25,18 +25,27 @@ DEFINES = -D__EMSCRIPTEN__=1 \
 # Kept simple — no inner quotes — to avoid shell quoting issues in sub-make.
 # USE_SQLITE3=1 tells Emscripten to use its own pre-compiled SQLite3 port.
 # ASYNCIFY=1 is required for async JS input bridging (getch stubs use ASYNCIFY).
+# INITIAL_MEMORY=32 MB, MAXIMUM_MEMORY=512 MB: iOS WebKit reserves the
+#   initial allocation upfront and aggressively kills tabs that exceed
+#   their per-tab budget. Starting at 32 MB and letting ALLOW_MEMORY_GROWTH
+#   handle the rest on demand keeps us under iPhone's per-tab ceiling.
+# ASSERTIONS=0: drop Emscripten's debug runtime checks (significant code
+#   and memory overhead — not needed in a deployed build).
 EMCC_LDFLAGS = -s WASM=1 \
-               -s INITIAL_MEMORY=268435456 \
+               -s INITIAL_MEMORY=33554432 \
+               -s MAXIMUM_MEMORY=536870912 \
                -s ALLOW_MEMORY_GROWTH=1 \
                -s USE_SQLITE3=1 \
                -s ASYNCIFY=1 \
                -s ASYNCIFY_STACK_SIZE=4194304 \
                -s STACK_SIZE=8388608 \
-               -s ASSERTIONS=1 \
+               -s ASSERTIONS=0 \
                -s NO_EXIT_RUNTIME=1 \
                -fexceptions \
                --js-library library_dcss.js \
-               --preload-file dat@/dat
+               --preload-file dat@/dat \
+               --preload-file ../docs@/docs \
+               --exclude-file 'dat/tiles/*'
 
 # 4. Disable unsupported features
 # - TILES=/WEBTILES=/USE_TILE=/USE_SOUND= — no SDL or tile rendering in WASM ASCII build
@@ -49,19 +58,38 @@ DISABLE_FLAGS = USE_TILE= USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1 TILES= WE
                 BUILD_SQLITE=
 
 # 5. Build Target - build only the crawl binary, not the full 'all' target
-# This avoids building rltiles which is tiles-only
-crawl:
+# This avoids building rltiles which is tiles-only.
+# CFOPTIMIZE=-Oz overrides the parent Makefile's default -O2 to optimise for
+# size — important on iOS WebKit which has tight per-tab WASM memory limits.
+# GAME=crawl.js makes emcc emit crawl.js (browser-loadable) rather than a
+# bare `crawl` node-shebanged script that the <script src=> can't load.
+crawl.js: docs
 	@echo "Starting Emscripten build for DCSS ASCII..."
-	$(MAKE) -f Makefile crawl \
+	$(MAKE) -f Makefile crawl.js \
 		CXX="$(CXX)" \
 		CC="$(CC)" \
 		AR="$(AR)" \
 		RANLIB="$(RANLIB)" \
+		CFOPTIMIZE="-Oz" \
 		CFOTHERS="$(DEFINES)" \
 		EXTERNAL_LDFLAGS="$(EMCC_LDFLAGS)" \
 		BUILD_LUA=yes \
 		BUILD_ZLIB=yes \
+		GAME=crawl.js \
 		$(DISABLE_FLAGS)
 
-# Alias 'all' to also just build crawl
-all: crawl
+# Generate manual / aptitudes / quickstart docs that command.cc opens at
+# runtime when the player presses '?'. Without these, the help menu hits
+# ASSERT(fp) and aborts. The parent Makefile's `docs` target invokes
+# Perl scripts (no compilation) so we can run it before / outside the
+# main emcc build.
+docs:
+	$(MAKE) -f Makefile docs
+
+# Aliases for the historical target name and 'all'.
+# crawl.js is .PHONY because the parent Makefile handles its own
+# dependency tracking via .d files; we always want this wrapper recipe
+# to invoke it rather than short-circuiting on file existence.
+crawl: crawl.js
+all: crawl.js
+.PHONY: crawl all crawl.js docs

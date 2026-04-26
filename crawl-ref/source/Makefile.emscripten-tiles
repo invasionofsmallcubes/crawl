@@ -65,14 +65,19 @@ WASM_FONTS = PROPORTIONAL_FONT=/fonts/DejaVuSans.ttf \
 #   from the ASCII build).
 # - No --js-library library_dcss.js: that shim is curses-only (getch/wgetch/
 #   get_wch) and unreferenced when USE_TILE_LOCAL is on.
+# INITIAL_MEMORY=64 MB, MAXIMUM_MEMORY=1 GB: tile atlases need more headroom
+#   than ASCII, but iOS WebKit reserves INITIAL_MEMORY upfront so we still
+#   have to start small and let ALLOW_MEMORY_GROWTH handle the rest.
+# ASSERTIONS=0: drop Emscripten debug runtime checks.
 EMCC_LDFLAGS = -s WASM=1 \
-               -s INITIAL_MEMORY=402653184 \
+               -s INITIAL_MEMORY=67108864 \
+               -s MAXIMUM_MEMORY=1073741824 \
                -s ALLOW_MEMORY_GROWTH=1 \
                -s USE_SQLITE3=1 \
                -s ASYNCIFY=1 \
                -s ASYNCIFY_STACK_SIZE=4194304 \
                -s STACK_SIZE=8388608 \
-               -s ASSERTIONS=1 \
+               -s ASSERTIONS=0 \
                -s NO_EXIT_RUNTIME=1 \
                -fexceptions \
                $(EMCC_PORT_FLAGS) \
@@ -80,6 +85,7 @@ EMCC_LDFLAGS = -s WASM=1 \
                -s MAX_WEBGL_VERSION=2 \
                -lidbfs.js \
                --preload-file dat@/dat \
+               --preload-file ../docs@/docs \
                --preload-file contrib/fonts@/fonts \
                --pre-js fs_init.js
 
@@ -118,13 +124,14 @@ DISABLE_FLAGS = USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1 WEBTILES= \
 # companions. Without the extension emcc creates a node-shebanged file named
 # `crawl_tiles`, which the browser <script src=> can't load.
 # Listed first so it is the default goal when run as `make -f Makefile.emscripten-tiles`.
-crawl_tiles.js: host-rltiles
+crawl_tiles.js: host-rltiles docs
 	@echo "==> Building DCSS Tiles for WebAssembly..."
 	$(MAKE) -f Makefile crawl_tiles.js \
 		CXX="$(CXX)" \
 		CC="$(CC)" \
 		AR="$(AR)" \
 		RANLIB="$(RANLIB)" \
+		CFOPTIMIZE="-Oz" \
 		CFOTHERS="$(DEFINES)" \
 		EXTERNAL_LDFLAGS="$(EMCC_LDFLAGS)" \
 		BUILD_LUA=yes \
@@ -144,15 +151,27 @@ crawl_tiles: crawl_tiles.js
 # point at contrib/install/$(ARCH)/lib/, which the parent emcc build may later
 # populate with WASM artifacts. With libpng-dev installed in the Dockerfile,
 # pkg-config succeeds and the ARCH fallback is unused anyway.
+#
+# The first $(MAKE) invocation runs the parent Makefile's art-data.pl rule
+# to regenerate rltiles/dc-unrand.txt (and its sibling art-data.h /
+# art-enum.h). After `make clean`, that file doesn't exist, and
+# rltiles/Makefile depends on it but has no rule of its own to generate it.
 host-rltiles:
+	@echo "==> Generating art-data outputs..."
+	$(MAKE) -f Makefile rltiles/dc-unrand.txt
 	@echo "==> Building rltiles with host toolchain..."
 	$(MAKE) -C rltiles all TILES=1 \
 		HOSTCXX=g++ \
 		CC=cc CXX=g++ AR=ar RANLIB=ranlib \
 		ARCH=host
 
+# Generate runtime docs (manual, aptitudes, quickstart) that command.cc
+# loads when the player presses '?'. Same rationale as the ASCII wrapper.
+docs:
+	$(MAKE) -f Makefile docs
+
 # 8. Clean only the tiles-specific outputs; leave ASCII artifacts alone.
 clean-tiles:
 	$(RM) crawl_tiles crawl_tiles.js crawl_tiles.wasm crawl_tiles.data
 
-.PHONY: crawl_tiles.js crawl_tiles all host-rltiles clean-tiles
+.PHONY: crawl_tiles.js crawl_tiles all host-rltiles docs clean-tiles
