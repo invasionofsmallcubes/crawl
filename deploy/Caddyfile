@@ -1,0 +1,18 @@
+{
+	# fly.io health-checks Caddy on the listen port — disable Caddy's
+	# auto-HTTPS since the proxy already terminates TLS.
+	auto_https off
+}
+
+:8080 {
+	root * /srv
+
+	encode gzip
+
+	# Serve .wasm.gz / .data.gz when the client accepts gzip; the
+	# Dockerfile pre-compresses these files at build time so we don't
+	# burn CPU re-compressing 50MB on every cold-fetch.
+	file_server {
+		precompressed gzip
+	}
+}
