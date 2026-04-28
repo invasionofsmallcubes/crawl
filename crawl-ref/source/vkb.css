@@ -1,12 +1,16 @@
-/* Virtual keyboard overlay — fixed bar at the bottom of the viewport */
+/* Virtual keyboard overlay — translucent overlay floating over the game.
+   The game viewport renders at full size beneath it; the overlay covers the
+   bottom ~30vh (HUD/message log area) when active. */
 #vkb-overlay {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 45vh;
-    background: #111;
-    border-top: 2px solid #333;
+    height: 30vh;
+    background: rgba(17, 17, 17, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: row;
     gap: 8px;
@@ -15,19 +19,6 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
-}
-
-/* Push page content above the fixed VKB overlay.
-   Tiles: prevents canvas from being hidden behind VKB.
-   ASCII: term-wrap height is set by JS so this mainly covers the toggle btn. */
-body.vkb-active {
-    padding-bottom: 46vh;
-}
-/* Scale the tiles canvas further when VKB is active so both fit on screen */
-body.vkb-active #canvas {
-    max-height: 52vh;
-    width: auto;
-    max-width: 100%;
 }
 
 /* D-pad: 3×3 grid, square, sized at ~28% of overlay width so it stays
@@ -94,31 +85,43 @@ body.vkb-active #canvas {
 }
 #vkb-buttons::-webkit-scrollbar { display: none; }
 
-/* Base button style */
+/* Base button style — two-line label (action name + shortcut). */
 .vkb-btn {
-    background: #1a1a1a;
-    color: #ccc;
-    border: 1px solid #444;
+    background: rgba(26, 26, 26, 0.85);
+    color: #ddd;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 6px;
-    min-width: 48px;
+    min-width: 76px;
     min-height: 44px;
     font-size: 13px;
+    line-height: 1.15;
     cursor: pointer;
     touch-action: manipulation;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 4px 6px;
+    padding: 4px 8px;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.08s;
 }
 .vkb-btn:active {
-    background: #2a2a2a;
-    border-color: #666;
+    background: rgba(42, 42, 42, 0.95);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+.vkb-btn-name {
+    font-weight: 500;
+}
+.vkb-btn-key {
+    font-size: 10px;
+    opacity: 0.55;
+    margin-top: 2px;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
-/* D-pad cells fill their grid cell fully */
+/* D-pad cells fill their grid cell fully; single-line icon-only layout. */
 .vkb-dpad-btn {
+    flex-direction: row;
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -156,18 +159,15 @@ body.vkb-active #canvas {
     transition: bottom 0.15s;
 }
 body.vkb-active #vkb-toggle {
-    bottom: calc(45vh + 8px);
+    bottom: calc(30vh + 8px);
 }
 
-/* Landscape: shorter VKB, toggle repositioned */
+/* Landscape: even shorter VKB so HUD remains visible. */
 @media (orientation: landscape) {
     #vkb-overlay {
-        height: 38vh;
-    }
-    body.vkb-active {
-        padding-bottom: 39vh;
+        height: 28vh;
     }
     body.vkb-active #vkb-toggle {
-        bottom: calc(38vh + 8px);
+        bottom: calc(28vh + 8px);
     }
 }

@@ -6,16 +6,22 @@
     // -----------------------------------------------------------------------
 
     // D-pad: 3×3 grid in reading order (top-left to bottom-right).
-    // Sends vi-keys, which both game modes accept.
+    // Cardinals send arrow keys so they work in menus too — DCSS menus
+    // accept arrows for navigation but not vi-keys (hjkl only move on the
+    // game map). Diagonals stay as vi-keys (yubn) since menus are 1-D /
+    // 2-D and don't need diagonals; in-game movement still works for both.
+    // ASCII charCode values are ncurses KEY_* codes (>= 256, picked up by
+    // get_wch as KEY_CODE_YES function keys); tile mode ignores charCode
+    // for non-keypress events and reads keyCode/key/code instead.
     var DPAD = [
         { label: '↖', charCode: 121, key: 'y', code: 'KeyY' },
-        { label: '↑', charCode: 107, key: 'k', code: 'KeyK' },
+        { label: '↑', charCode: 259, key: 'ArrowUp',    code: 'ArrowUp' },
         { label: '↗', charCode: 117, key: 'u', code: 'KeyU' },
-        { label: '←', charCode: 104, key: 'h', code: 'KeyH' },
+        { label: '←', charCode: 260, key: 'ArrowLeft',  code: 'ArrowLeft' },
         { label: '·', charCode: 46,  key: '.', code: 'Period', isWait: true },
-        { label: '→', charCode: 108, key: 'l', code: 'KeyL' },
+        { label: '→', charCode: 261, key: 'ArrowRight', code: 'ArrowRight' },
         { label: '↙', charCode: 98,  key: 'b', code: 'KeyB' },
-        { label: '↓', charCode: 106, key: 'j', code: 'KeyJ' },
+        { label: '↓', charCode: 258, key: 'ArrowDown',  code: 'ArrowDown' },
         { label: '↘', charCode: 110, key: 'n', code: 'KeyN' },
     ];
 
@@ -23,46 +29,48 @@
         items: {
             label: 'Items',
             buttons: [
-                { label: 'Inv',     title: 'Inventory',       charCode: 105, key: 'i', code: 'KeyI' },
-                { label: 'Quaff',   title: 'Quaff potion',    charCode: 113, key: 'q', code: 'KeyQ' },
-                { label: 'Read',    title: 'Read scroll/book', charCode: 114, key: 'r', code: 'KeyR' },
-                { label: 'Pick',    title: 'Pick up item',    charCode: 103, key: 'g', code: 'KeyG' },
-                { label: 'Drop',    title: 'Drop item',       charCode: 100, key: 'd', code: 'KeyD' },
-                { label: 'Wield',   title: 'Wield weapon',    charCode: 119, key: 'w', code: 'KeyW' },
-                { label: 'Wear',    title: 'Wear armour',     charCode: 87,  key: 'W', code: 'KeyW', shiftKey: true },
-                { label: 'TakeOff', title: 'Take off armour', charCode: 84,  key: 'T', code: 'KeyT', shiftKey: true },
+                { name: 'Inventory', title: 'Inventory',        charCode: 105, key: 'i', code: 'KeyI' },
+                { name: 'Quaff',     title: 'Quaff potion',     charCode: 113, key: 'q', code: 'KeyQ' },
+                { name: 'Read',      title: 'Read scroll/book', charCode: 114, key: 'r', code: 'KeyR' },
+                { name: 'Pick up',   title: 'Pick up item',     charCode: 103, key: 'g', code: 'KeyG' },
+                { name: 'Drop',      title: 'Drop item',        charCode: 100, key: 'd', code: 'KeyD' },
+                { name: 'Wield',     title: 'Wield weapon',     charCode: 119, key: 'w', code: 'KeyW' },
+                { name: 'Wear',      title: 'Wear armour',      charCode: 87,  key: 'W', code: 'KeyW', shiftKey: true },
+                { name: 'Take off',  title: 'Take off armour',  charCode: 84,  key: 'T', code: 'KeyT', shiftKey: true },
             ],
         },
         combat: {
             label: 'Combat',
             buttons: [
-                { label: 'Attack', title: 'Auto-attack nearest',    charCode: 9,   key: 'Tab', code: 'Tab' },
-                { label: 'Cast',   title: 'Cast spell / Zap wand',  charCode: 122, key: 'z',   code: 'KeyZ' },
-                { label: 'Throw',  title: 'Throw item',             charCode: 116, key: 't',   code: 'KeyT' },
-                { label: 'Abil',   title: 'Use ability',            charCode: 97,  key: 'a',   code: 'KeyA' },
-                { label: 'Evoke',  title: 'Evoke item',             charCode: 118, key: 'v',   code: 'KeyV' },
+                { name: 'Attack', title: 'Auto-attack nearest',   charCode: 9,   key: 'Tab', code: 'Tab' },
+                { name: 'Cast',   title: 'Cast spell / Zap wand', charCode: 122, key: 'z',   code: 'KeyZ' },
+                { name: 'Throw',  title: 'Throw item',            charCode: 116, key: 't',   code: 'KeyT' },
+                { name: 'Ability', title: 'Use ability',          charCode: 97,  key: 'a',   code: 'KeyA' },
+                { name: 'Evoke',  title: 'Evoke item',            charCode: 118, key: 'v',   code: 'KeyV' },
             ],
         },
         explore: {
             label: 'Explore',
             buttons: [
-                { label: 'Auto',   title: 'Autoexplore',           charCode: 111, key: 'o',   code: 'KeyO' },
-                { label: 'Travel', title: 'Travel to location',    charCode: 71,  key: 'G',   code: 'KeyG', shiftKey: true },
-                { label: 'Search', title: 'Search current tile',   charCode: 115, key: 's',   code: 'KeyS' },
-                { label: 'Look',   title: 'Look around / examine', charCode: 120, key: 'x',   code: 'KeyX' },
-                { label: '▼',      title: 'Descend stairs',        charCode: 62,  key: '>',   code: 'Period', shiftKey: true },
-                { label: '▲',      title: 'Ascend stairs',         charCode: 60,  key: '<',   code: 'Comma',  shiftKey: true },
+                { name: 'Autoexplore', title: 'Autoexplore',           charCode: 111, key: 'o', code: 'KeyO' },
+                { name: 'Travel',      title: 'Travel to location',    charCode: 71,  key: 'G', code: 'KeyG', shiftKey: true },
+                { name: 'Search',      title: 'Search current tile',   charCode: 115, key: 's', code: 'KeyS' },
+                { name: 'Look',        title: 'Look around / examine', charCode: 120, key: 'x', code: 'KeyX' },
+                { name: 'Descend',     title: 'Descend stairs',        charCode: 62,  key: '>', code: 'Period', shiftKey: true },
+                { name: 'Ascend',      title: 'Ascend stairs',         charCode: 60,  key: '<', code: 'Comma',  shiftKey: true },
             ],
         },
         meta: {
             label: 'Meta',
             buttons: [
-                { label: '?',    title: 'Help / commands',  charCode: 63, key: '?', code: 'Slash',  shiftKey: true },
-                { label: '@',    title: 'Character overview', charCode: 64, key: '@', code: 'Digit2', shiftKey: true },
-                { label: '^',    title: 'Religion menu',     charCode: 94, key: '^', code: 'Digit6', shiftKey: true },
-                { label: 'C-s',  title: 'Save and quit',     charCode: 19, key: 's', code: 'KeyS', ctrlKey: true },
-                { label: 'C-p',  title: 'Message log',       charCode: 16, key: 'p', code: 'KeyP', ctrlKey: true },
-                { label: 'C-f',  title: 'Find item',         charCode: 6,  key: 'f', code: 'KeyF', ctrlKey: true },
+                { name: 'Confirm',   title: 'Confirm / Enter',    charCode: 13, key: 'Enter', code: 'Enter' },
+                { name: 'Space',     title: 'Space (more / dismiss)', charCode: 32, key: ' ', code: 'Space' },
+                { name: 'Help',      title: 'Help / commands',    charCode: 63, key: '?', code: 'Slash',  shiftKey: true },
+                { name: 'Character', title: 'Character overview', charCode: 64, key: '@', code: 'Digit2', shiftKey: true },
+                { name: 'Religion',  title: 'Religion menu',      charCode: 94, key: '^', code: 'Digit6', shiftKey: true },
+                { name: 'Save',      title: 'Save and quit',      charCode: 19, key: 's', code: 'KeyS', ctrlKey: true },
+                { name: 'Messages',  title: 'Message log',        charCode: 16, key: 'p', code: 'KeyP', ctrlKey: true },
+                { name: 'Find',      title: 'Find item',          charCode: 6,  key: 'f', code: 'KeyF', ctrlKey: true },
             ],
         },
     };
@@ -80,10 +88,15 @@
         if (/^Key[A-Z]$/.test(code)) return code.charCodeAt(3); // KeyO → 79
         var map = {
             'Tab':    9,
+            'Enter':  13,
             'Space':  32,
             'Period': 190,
             'Comma':  188,
             'Slash':  191,
+            'ArrowLeft':  37,
+            'ArrowUp':    38,
+            'ArrowRight': 39,
+            'ArrowDown':  40,
             'Digit0': 48, 'Digit1': 49, 'Digit2': 50, 'Digit3': 51,
             'Digit4': 52, 'Digit5': 53, 'Digit6': 54, 'Digit7': 55,
             'Digit8': 56, 'Digit9': 57,
@@ -122,7 +135,7 @@
 
     // Tiles input bridge — synthesise keyboard events and hand them to SDL2.
     //
-    // Two browser quirks make naive `dispatchEvent` insufficient:
+    // Three browser/SDL quirks make naive `dispatchEvent` insufficient:
     //
     //   1. Chrome/Safari ignore keyCode/which in KeyboardEventInit; only
     //      Firefox honours them. Emscripten's SDL2 port reads e.keyCode and
@@ -138,12 +151,52 @@
     //      keypress is also dispatched. tiles.html captures SDL2's listener
     //      registrations into window.__vkbKeyListeners so we can invoke them
     //      directly with our synthetic events.
+    //
+    //   3. Modifier bookkeeping. SDL_GetModState() reads from the internal
+    //      keystate array, which is only updated by SDL_KEYDOWN/KEYUP for the
+    //      modifier scancodes themselves — not from the per-event ctrlKey
+    //      flag. DCSS converts SDLK_f + KMOD_CTRL → ^F by checking that
+    //      modifier state, so a single keydown(KeyF, ctrlKey=true) without a
+    //      preceding keydown(ControlLeft) gets read as plain 'f'. We wrap
+    //      ctrl-letter sequences with explicit Control down/up events to
+    //      match a real keyboard's event sequence.
+    function fireListeners(ev, type) {
+        var listeners = window.__vkbKeyListeners || [];
+        listeners.forEach(function (reg) {
+            if (reg.type !== type) return;
+            try { reg.listener(ev); } catch (e) { /* ignore */ }
+        });
+    }
+
+    function makeKeyEvent(type, init, kc, charCode) {
+        var e = new KeyboardEvent(type, init);
+        var isPress = type === 'keypress';
+        Object.defineProperty(e, 'keyCode',  { get: function () { return isPress ? charCode : kc; } });
+        Object.defineProperty(e, 'which',    { get: function () { return isPress ? charCode : kc; } });
+        Object.defineProperty(e, 'charCode', { get: function () { return isPress ? charCode : 0; } });
+        return e;
+    }
+
     function tilesInject(btn) {
         var canvas = document.getElementById('canvas');
         if (!canvas) return;
         canvas.focus({ preventScroll: true });
 
         var kc = deriveKeyCode(btn.code, !!btn.shiftKey, !!btn.ctrlKey);
+        // Browsers fire keypress for printable single-char keys with no
+        // Ctrl/Alt modifier; match that so SDL2 generates SDL_TEXTINPUT.
+        // DCSS reads letter input via SDL_TEXTINPUT, not SDL_KEYDOWN.
+        var wantKeypress = btn.key && btn.key.length === 1 && !btn.ctrlKey && !btn.altKey;
+
+        // Open the modifier first so SDL_KEYMOD_CTRL is set before the letter
+        // keydown lands. Without this, ctrl-letter combos read as plain
+        // letters because DCSS's SDL handler checks SDL_GetModState().
+        if (btn.ctrlKey) {
+            var ctrlInit = { key: 'Control', code: 'ControlLeft', ctrlKey: true,
+                             bubbles: true, cancelable: true };
+            fireListeners(makeKeyEvent('keydown', ctrlInit, 17, 0), 'keydown');
+        }
+
         var evInit = {
             key:      btn.key,
             code:     btn.code,
@@ -152,27 +205,17 @@
             bubbles:  true,
             cancelable: true,
         };
-        function makeEv(type) {
-            var e = new KeyboardEvent(type, evInit);
-            var isPress = type === 'keypress';
-            Object.defineProperty(e, 'keyCode',  { get: function () { return isPress ? btn.charCode : kc; } });
-            Object.defineProperty(e, 'which',    { get: function () { return isPress ? btn.charCode : kc; } });
-            Object.defineProperty(e, 'charCode', { get: function () { return isPress ? btn.charCode : 0; } });
-            return e;
+        fireListeners(makeKeyEvent('keydown', evInit, kc, btn.charCode), 'keydown');
+        if (wantKeypress) {
+            fireListeners(makeKeyEvent('keypress', evInit, kc, btn.charCode), 'keypress');
         }
-        // Browsers fire keypress for printable single-char keys with no
-        // Ctrl/Alt modifier; match that so SDL2 generates SDL_TEXTINPUT.
-        // DCSS reads letter input via SDL_TEXTINPUT, not SDL_KEYDOWN.
-        var wantKeypress = btn.key && btn.key.length === 1 && !btn.ctrlKey && !btn.altKey;
+        fireListeners(makeKeyEvent('keyup', evInit, kc, btn.charCode), 'keyup');
 
-        var listeners = window.__vkbKeyListeners || [];
-        listeners.forEach(function (reg) {
-            try {
-                if (reg.type === 'keydown') reg.listener(makeEv('keydown'));
-                else if (reg.type === 'keypress' && wantKeypress) reg.listener(makeEv('keypress'));
-                else if (reg.type === 'keyup') reg.listener(makeEv('keyup'));
-            } catch (err) { /* ignore individual listener failures */ }
-        });
+        if (btn.ctrlKey) {
+            var ctrlUpInit = { key: 'Control', code: 'ControlLeft', ctrlKey: false,
+                               bubbles: true, cancelable: true };
+            fireListeners(makeKeyEvent('keyup', ctrlUpInit, 17, 0), 'keyup');
+        }
     }
 
     // ASCII input bridge — push directly into the curses key buffer that
@@ -193,10 +236,29 @@
     // DOM helpers
     // -----------------------------------------------------------------------
 
+    function formatShortcut(btn) {
+        var k = btn.key;
+        if (k === ' ') k = 'Space';
+        if (btn.ctrlKey) return '(Ctrl+' + k.toUpperCase() + ')';
+        return '(' + k + ')';
+    }
+
     function makeBtn(btn, extraClass) {
         var el = document.createElement('button');
         el.className = 'vkb-btn' + (extraClass ? ' ' + extraClass : '');
-        el.textContent = btn.label;
+        var isDpad = extraClass && extraClass.indexOf('vkb-dpad-btn') !== -1;
+        if (isDpad) {
+            el.textContent = btn.label;
+        } else {
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'vkb-btn-name';
+            nameSpan.textContent = btn.name || btn.label;
+            var keySpan = document.createElement('span');
+            keySpan.className = 'vkb-btn-key';
+            keySpan.textContent = formatShortcut(btn);
+            el.appendChild(nameSpan);
+            el.appendChild(keySpan);
+        }
         if (btn.title) el.setAttribute('title', btn.title);
         var lastTouch = 0;
         el.addEventListener('touchstart', function (e) {
@@ -309,9 +371,6 @@
         document.body.classList.add('vkb-active');
         updateToggle(true);
         try { localStorage.setItem('vkb-enabled', '1'); } catch (e) {}
-        setTimeout(function () {
-            if (typeof window.dcssTermFit === 'function') window.dcssTermFit();
-        }, 60);
     }
 
     function unmount() {
@@ -320,9 +379,6 @@
         document.body.classList.remove('vkb-active');
         updateToggle(false);
         try { localStorage.setItem('vkb-enabled', '0'); } catch (e) {}
-        setTimeout(function () {
-            if (typeof window.dcssTermFit === 'function') window.dcssTermFit();
-        }, 60);
     }
 
     // -----------------------------------------------------------------------
@@ -363,7 +419,7 @@
                     'width:40px;height:40px;font-size:18px;cursor:pointer;',
                     'touch-action:manipulation;display:flex;align-items:center;',
                     'justify-content:center;-webkit-tap-highlight-color:transparent;}',
-                    'body.vkb-active #vkb-toggle{bottom:calc(45vh + 8px);}',
+                    'body.vkb-active #vkb-toggle{bottom:calc(30vh + 8px);}',
                 ].join('');
                 document.head.appendChild(style);
             }

@@ -9,6 +9,19 @@
 
 	encode gzip
 
+	# Service worker MUST be revalidated on every load — otherwise stale
+	# HTTP caching prevents updates from rolling out. Same idea for the
+	# manifest (small file, cheap to revalidate).
+	@no_cache path /sw.js /manifest.webmanifest
+	header @no_cache Cache-Control "no-cache, must-revalidate"
+
+	# WASM bundles change with every build but keep the same filename, so
+	# force HTTP revalidation: ETag/If-None-Match makes the cheap path 304
+	# Not Modified, but a deploy is picked up immediately. Offline still
+	# works because the service worker intercepts before the HTTP cache.
+	@bundles path /crawl.js /crawl.wasm /crawl.data /crawl_tiles.js /crawl_tiles.wasm /crawl_tiles.data
+	header @bundles Cache-Control "no-cache, must-revalidate"
+
 	# Serve .wasm.gz / .data.gz when the client accepts gzip; the
 	# Dockerfile pre-compresses these files at build time so we don't
 	# burn CPU re-compressing 50MB on every cold-fetch.

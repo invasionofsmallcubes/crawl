@@ -59,6 +59,11 @@ WASM_FONTS = PROPORTIONAL_FONT=/fonts/DejaVuSans.ttf \
 #   recipes; the ports work and Emscripten's libpng pulls Emscripten's zlib).
 # - MIN_WEBGL_VERSION=2 / MAX_WEBGL_VERSION=2: the GLES2 shader path written
 #   into glwrapper-ogl.cc (Commit 3) targets WebGL2.
+# - --preload-file dat.wasm@/dat: a build-time staging copy of dat/ produced
+#   by the dat.wasm-stage recipe below — tile PNGs are pngquant'd and all but
+#   one title screen are culled to keep the .data bundle inside iOS Safari's
+#   per-tab budget. The MEMFS path stays /dat so runtime asset lookups don't
+#   change.
 # - --preload-file contrib/fonts@/fonts: makes DejaVuSans*.ttf available at
 #   the absolute paths the PROPORTIONAL_FONT/MONOSPACED_FONT defines reference.
 # - --pre-js fs_init.js: mounts IDBFS at /saves and /morgue (carries forward
@@ -84,7 +89,7 @@ EMCC_LDFLAGS = -s WASM=1 \
                -s MIN_WEBGL_VERSION=2 \
                -s MAX_WEBGL_VERSION=2 \
                -lidbfs.js \
-               --preload-file dat@/dat \
+               --preload-file dat.wasm@/dat \
                --preload-file ../docs@/docs \
                --preload-file contrib/fonts@/fonts \
                --pre-js fs_init.js
@@ -118,13 +123,19 @@ DISABLE_FLAGS = USE_SOUND= SOUND= NO_TRY_LLD=1 NO_TRY_GOLD=1 WEBTILES= \
                 BUILD_SDL2= BUILD_SDL2IMAGE= BUILD_FREETYPE= BUILD_LIBPNG= \
                 NO_SDL_LIBS=YesPlease
 
+# Title to keep when culling the rest from the staged dat/. Override on the
+# command line (`make -f Makefile.emscripten-tiles KEEP_TITLE=title_foo.png`)
+# to swap in a different splash. The full set of titles ships ~9.6 MB raw,
+# which alone would push the .data bundle past iOS Safari's per-tab ceiling.
+KEEP_TITLE ?= title_denzi_invasion.png
+
 # 5. WASM tiles compile/link via the parent Makefile.
 # GAME=crawl_tiles.js — emcc determines output type from the extension; with
 # `.js` we get the JS glue file at crawl_tiles.js plus its wasm/data
 # companions. Without the extension emcc creates a node-shebanged file named
 # `crawl_tiles`, which the browser <script src=> can't load.
 # Listed first so it is the default goal when run as `make -f Makefile.emscripten-tiles`.
-crawl_tiles.js: host-rltiles docs
+crawl_tiles.js: host-rltiles docs dat.wasm-stage
 	@echo "==> Building DCSS Tiles for WebAssembly..."
 	$(MAKE) -f Makefile crawl_tiles.js \
 		CXX="$(CXX)" \
@@ -170,8 +181,66 @@ host-rltiles:
 docs:
 	$(MAKE) -f Makefile docs
 
+# Stage dat/ into dat.wasm/ for the emcc preload bundle. Two transforms:
+#   1. Cull title_*.png down to KEEP_TITLE (saves ~9.5 MB raw).
+#   2. pngquant every tile PNG in place (~50% reduction for 32-bit RGBA art;
+#      the GPU decodes to RGBA8 either way, so on-disk format only affects
+#      the .data bundle size, not runtime memory).
+# Re-staged on every build so dat/ edits and host-rltiles atlas regeneration
+# both propagate. Cheap (~10 s) compared to the wasm link step.
+# `cp -a` preserves the dat/ tree shape so MEMFS paths under /dat stay valid.
+# pngquant flags:
+#   --skip-if-larger: leave the file alone if quantization would inflate it
+#     (rare but happens for already-indexed PNGs).
+#   --strip: drop ancillary chunks (tEXt, gAMA, etc.) — pure overhead in MEMFS.
+#   --quality=70-90: floor/ceiling. Below 70 visual artifacts on tile sprites
+#     start to show; above 90 the win shrinks for diminishing return.
+#   --force --ext .png: overwrite in place rather than emitting *-fs8.png.
+# Tolerate pngquant exit codes 98 (NOT_OVERWRITING_ERROR — older pngquant
+# versions return this for some same-extension overwrites) and 99
+# (TOO_LOW_QUALITY — can't fit ≥70 quality in 256 colours; happens on the
+# big detail-heavy atlases like main.png / wall.png). In both cases the
+# original file is preserved unchanged, which is the safe fallback we want.
+dat.wasm-stage: host-rltiles
+	@echo "==> Refreshing dat/tiles/ atlases from rltiles/ outputs..."
+	@# host-rltiles writes atlases to rltiles/*.png. The parent Makefile's
+	@# `dat/tiles/%.png: $(RLTILES)/%.png` rule (Makefile:1926) copies them
+	@# into dat/tiles/ — but only fires as a dep of the inner link, *after*
+	@# this stage runs. Mirror it here so dat.wasm/ gets the fresh atlases.
+	@# On a clean checkout dat/tiles atlases don't exist yet, so this is
+	@# load-bearing, not just a freshness guard.
+	@# Skip empty files: tilegen writes a stub rltiles/dngn.png even though
+	@# dngn isn't in TILEIMAGEFILES (Makefile:1162) — pngquant can't decode it.
+	@for src in rltiles/*.png; do \
+		[ -s "$$src" ] || continue; \
+		base=$$(basename "$$src"); \
+		dst="dat/tiles/$$base"; \
+		if [ ! -f "$$dst" ] || [ "$$src" -nt "$$dst" ]; then \
+			cp "$$src" "$$dst"; \
+		fi; \
+	done
+	@echo "==> Staging dat/ -> dat.wasm/ (cull titles, quantize PNGs)..."
+	$(RM) -r dat.wasm
+	cp -a dat dat.wasm
+	@echo "    keeping title: $(KEEP_TITLE)"
+	@if [ ! -f dat.wasm/tiles/$(KEEP_TITLE) ]; then \
+		echo "ERROR: KEEP_TITLE=$(KEEP_TITLE) not found in dat/tiles/" >&2; \
+		exit 1; \
+	fi
+	@find dat.wasm/tiles -name 'title_*.png' ! -name '$(KEEP_TITLE)' -delete
+	@echo "==> Quantizing dat.wasm/tiles/*.png with pngquant..."
+	@# `-size +0c` skips zero-byte files defensively (e.g. a stale empty
+	@# dngn.png that slipped past the refresh-loop guard). pngquant 2.x
+	@# returns rc=25 (libpng decode error) on empty inputs.
+	@find dat.wasm/tiles -name '*.png' -size +0c -print0 | \
+		xargs -0 -n 1 -P 4 sh -c \
+			'pngquant --skip-if-larger --strip --quality=70-90 \
+				--force --ext .png -- "$$0" 2>/dev/null; \
+			 rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 98 ] || [ $$rc -eq 99 ]'
+
 # 8. Clean only the tiles-specific outputs; leave ASCII artifacts alone.
 clean-tiles:
 	$(RM) crawl_tiles crawl_tiles.js crawl_tiles.wasm crawl_tiles.data
+	$(RM) -r dat.wasm
 
-.PHONY: crawl_tiles.js crawl_tiles all host-rltiles docs clean-tiles
+.PHONY: crawl_tiles.js crawl_tiles all host-rltiles docs dat.wasm-stage clean-tiles

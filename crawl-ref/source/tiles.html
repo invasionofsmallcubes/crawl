@@ -4,16 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DCSS Tiles — WebAssembly</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#111111">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
+  html, body { height: 100%; }
   body { margin: 0; background: #000; color: #c0c0c0;
-         font: 13px monospace; overflow-x: hidden; }
-  #status { padding: 6px 10px; border-bottom: 1px solid #222; }
-  /* Scale canvas to fit viewport width while keeping 1024:768 aspect ratio.
-     The HTML width/height attributes stay at 1024×768 (WebGL viewport);
-     CSS width/height only affect the display size. */
+         font: 13px monospace; overflow: hidden; }
+  #status { padding: 6px 10px; border-bottom: 1px solid #222;
+            box-sizing: border-box; }
+  /* Fit the canvas inside the viewport while preserving the 1024:768 aspect
+     ratio. The HTML width/height attributes stay at 1024×768 (WebGL viewport);
+     CSS only affects the display size. The min() picks the smaller of:
+       - 100vw (limited by viewport width — portrait case)
+       - the width that makes the height fit under the status bar — landscape
+     so neither dimension overflows. --status-h covers the #status row. */
+  :root { --status-h: 30px; }
   #canvas { display: block; border: 0; outline: none;
-            width: 100%; max-width: 1024px; height: auto;
-            aspect-ratio: 1024 / 768; margin: 0 auto; background: #000; }
+            width: min(100vw, calc((100dvh - var(--status-h)) * 4 / 3));
+            max-width: 1024px;
+            aspect-ratio: 1024 / 768;
+            height: auto;
+            margin: 0 auto; background: #000; }
+  /* dvh fallback for older browsers (treat as vh). */
+  @supports not (height: 100dvh) {
+    #canvas { width: min(100vw, calc((100vh - var(--status-h)) * 4 / 3)); }
+  }
   #canvas:focus { outline: 1px solid #335; }
 </style>
 </head>
@@ -75,5 +94,22 @@ window.addEventListener('beforeunload', function() {
 </script>
 <script src="crawl_tiles.js"></script>
 <script src="vkb.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+    // See index.html for the rationale; same registration logic on every page.
+    var hadController = !!navigator.serviceWorker.controller;
+    var refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!hadController || refreshing) return;
+        refreshing = true;
+        location.reload();
+    });
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+            .then(function (reg) { if (reg && reg.update) reg.update().catch(function () {}); })
+            .catch(function (e) { console.warn('SW registration failed:', e); });
+    });
+}
+</script>
 </body>
 </html>

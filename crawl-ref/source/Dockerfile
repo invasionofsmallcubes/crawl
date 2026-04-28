@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     libpng-dev \
+    pngquant \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Set up Emscripten SDK (emsdk)
