@@ -107,16 +107,33 @@
         },
     };
 
-    // QWERTY layout. Each cell is either a printable single char or a
-    // special token: SHIFT (toggle case), BACK (backspace), SPACE.
-    // Numbers stay digits in shifted mode (no symbol overlay) — DCSS
-    // doesn't ask for symbols often enough to justify the complexity.
+    // Compact QWERTY layout — used for the in-flow follow-up modes
+    // (qwerty-once for 'Cast', qwerty-text for 'Travel'). Tabs and the
+    // d-pad column stay visible alongside it; the user only needs letters
+    // and a few punctuation keys to complete the in-game prompt.
+    // Special tokens: SHIFT (toggle case, sticky-once), BACK (backspace),
+    // SPACE.
     var QWERTY_LAYOUT = [
         ['1','2','3','4','5','6','7','8','9','0'],
         ['q','w','e','r','t','y','u','i','o','p'],
         ['a','s','d','f','g','h','j','k','l'],
         ['SHIFT','z','x','c','v','b','n','m','BACK'],
         ['.',',',':','-','\'','SPACE'],
+    ];
+
+    // Full-keyboard layout — used when the Keyboard tab is selected
+    // (mode = 'qwerty-keyboard'). The d-pad column is hidden and the
+    // overlay grows nearly full-screen, so the keyboard has to be
+    // self-sufficient: arrows, Ctrl, Shift, Enter, Esc all live here.
+    // CTRL behaves like SHIFT — tap once to "stick", next non-modifier
+    // key fires with that modifier (e.g. Ctrl+S), then both release.
+    var KEYBOARD_LAYOUT = [
+        ['1','2','3','4','5','6','7','8','9','0'],
+        ['q','w','e','r','t','y','u','i','o','p'],
+        ['a','s','d','f','g','h','j','k','l'],
+        ['SHIFT','z','x','c','v','b','n','m','BACK'],
+        ['CTRL','.',',','-','\'','/','?','SPACE','ENTER'],
+        ['ESC','LEFT','UP','DOWN','RIGHT'],
     ];
 
     // Punctuation key descriptors (DOM `code` + DOM keyCode + whether shift
@@ -126,8 +143,27 @@
         '.':  { code: 'Period',    keyCode: 190, shift: false },
         ',':  { code: 'Comma',     keyCode: 188, shift: false },
         ':':  { code: 'Semicolon', keyCode: 186, shift: true  },
+        ';':  { code: 'Semicolon', keyCode: 186, shift: false },
         '-':  { code: 'Minus',     keyCode: 189, shift: false },
         '\'': { code: 'Quote',     keyCode: 222, shift: false },
+        '/':  { code: 'Slash',     keyCode: 191, shift: false },
+        '?':  { code: 'Slash',     keyCode: 191, shift: true  },
+        '!':  { code: 'Digit1',    keyCode: 49,  shift: true  },
+    };
+
+    // Special-key descriptors keyed by layout token. Used by both layouts
+    // for non-printable keys (arrows, Enter, Esc, backspace, space). The
+    // ASCII charCode for arrows are ncurses KEY_* codes — get_wch returns
+    // them as KEY_CODE_YES function keys.
+    var SPECIAL_KEYS = {
+        BACK:  { key: 'Backspace',  code: 'Backspace',  charCode: 8   },
+        SPACE: { key: ' ',          code: 'Space',      charCode: 32  },
+        ENTER: { key: 'Enter',      code: 'Enter',      charCode: 13  },
+        ESC:   { key: 'Escape',     code: 'Escape',     charCode: 27  },
+        LEFT:  { key: 'ArrowLeft',  code: 'ArrowLeft',  charCode: 260 },
+        UP:    { key: 'ArrowUp',    code: 'ArrowUp',    charCode: 259 },
+        DOWN:  { key: 'ArrowDown',  code: 'ArrowDown',  charCode: 258 },
+        RIGHT: { key: 'ArrowRight', code: 'ArrowRight', charCode: 261 },
     };
 
     // -----------------------------------------------------------------------
@@ -143,6 +179,14 @@
     var state = {
         mode: 'category',
         qwertyShift: false,
+        // qwertyCtrl is sticky in the same sense as qwertyShift: tap once
+        // and it stays on (visually highlighted) until the next non-
+        // modifier key fires with `ctrlKey: true`, after which both
+        // modifiers release. Only meaningful in qwerty-keyboard mode (the
+        // compact layout doesn't expose Ctrl), but we keep the state
+        // module-level so it survives across mode transitions and the
+        // reset path in setMode is the single source of truth.
+        qwertyCtrl: false,
         activeCategory: 'fight',
     };
 
@@ -296,7 +340,13 @@
     function setMode(newMode) {
         if (state.mode === newMode) return;
         state.mode = newMode;
-        if (!isQwertyMode(newMode)) state.qwertyShift = false;
+        if (!isQwertyMode(newMode)) {
+            state.qwertyShift = false;
+            state.qwertyCtrl = false;
+        }
+        // The full-screen Keyboard mode hides the d-pad and grows the
+        // overlay; CSS picks that up off the body class.
+        document.body.classList.toggle('vkb-mode-keyboard', newMode === 'qwerty-keyboard');
         renderActions();
         updateModeIndicators();
     }
@@ -349,32 +399,45 @@
     // QWERTY rendering
     // -----------------------------------------------------------------------
 
-    // Build the btn descriptor for a qwerty cell. `cell` is a string from
-    // QWERTY_LAYOUT — either a printable char or a special token.
+    // Tokens that are modifiers, not key events. Tapping them toggles the
+    // sticky state; they don't fire any DCSS input directly.
+    function isModifierCell(cell) { return cell === 'SHIFT' || cell === 'CTRL'; }
+
+    // Resolve a layout cell to a btn descriptor — what we'll feed into
+    // injectKey when the cell fires. Returns null for modifier cells
+    // (handled separately by the caller). Sticky modifiers (Shift/Ctrl)
+    // are NOT applied here; they're layered on by `fire()` so the same
+    // descriptor can be used for both the compact and full layouts.
     function qwertyCellBtn(cell) {
-        if (cell === 'SHIFT' || cell === 'BACK' || cell === 'SPACE') return null;
+        if (isModifierCell(cell)) return null;
+        if (SPECIAL_KEYS[cell]) {
+            // Clone so callers can mutate (apply ctrl/shift) without
+            // poisoning the SPECIAL_KEYS table.
+            var s = SPECIAL_KEYS[cell];
+            return { key: s.key, code: s.code, charCode: s.charCode };
+        }
         var ch = cell;
         if (/^[a-z]$/.test(ch)) {
-            var actual = state.qwertyShift ? ch.toUpperCase() : ch;
+            // Shift handling for letters: produce the upper-case char
+            // directly. SDL_TEXTINPUT cares about the resulting char, not
+            // the shiftKey flag — but we set shiftKey too so the synthetic
+            // event matches what a real keyboard would produce.
+            var shifted = state.qwertyShift;
+            var actual = shifted ? ch.toUpperCase() : ch;
             return {
-                name: actual, key: actual,
+                key: actual,
                 code: 'Key' + ch.toUpperCase(),
                 charCode: actual.charCodeAt(0),
-                shiftKey: state.qwertyShift,
+                shiftKey: shifted,
             };
         }
         if (/^[0-9]$/.test(ch)) {
-            return {
-                name: ch, key: ch,
-                code: 'Digit' + ch,
-                charCode: ch.charCodeAt(0),
-            };
+            return { key: ch, code: 'Digit' + ch, charCode: ch.charCodeAt(0) };
         }
         var p = PUNCT[ch];
         if (p) {
             return {
-                name: ch, key: ch,
-                code: p.code,
+                key: ch, code: p.code,
                 charCode: ch.charCodeAt(0),
                 shiftKey: !!p.shift,
             };
@@ -382,41 +445,79 @@
         return null;
     }
 
+    function qwertyLabel(cell) {
+        if (cell === 'SHIFT') return state.qwertyShift ? '⇧*' : '⇧';
+        if (cell === 'CTRL')  return state.qwertyCtrl  ? 'Ctrl·' : 'Ctrl';
+        if (cell === 'BACK')  return '⌫';
+        if (cell === 'SPACE') return '';
+        if (cell === 'ENTER') return '↵';
+        if (cell === 'ESC')   return 'Esc';
+        if (cell === 'LEFT')  return '←';
+        if (cell === 'UP')    return '↑';
+        if (cell === 'DOWN')  return '↓';
+        if (cell === 'RIGHT') return '→';
+        if (state.qwertyShift && /^[a-z]$/.test(cell)) return cell.toUpperCase();
+        return cell;
+    }
+
     function makeQwertyKey(cell) {
         var el = document.createElement('button');
         el.className = 'vkb-qkey';
 
-        var label;
-        if      (cell === 'SHIFT') { label = state.qwertyShift ? '⇧*' : '⇧'; el.classList.add('vkb-qkey-mod'); }
-        else if (cell === 'BACK')  { label = '⌫';  el.classList.add('vkb-qkey-mod'); el.classList.add('vkb-qkey-back'); }
-        else if (cell === 'SPACE') { label = ' '; el.classList.add('vkb-qkey-space'); }
-        else                       { label = state.qwertyShift && /^[a-z]$/.test(cell) ? cell.toUpperCase() : cell; }
-        el.textContent = label;
+        // Visual classification — drives flex sizing in CSS.
+        if (cell === 'SHIFT' || cell === 'CTRL') el.classList.add('vkb-qkey-mod');
+        if (cell === 'BACK')  el.classList.add('vkb-qkey-mod', 'vkb-qkey-back');
+        if (cell === 'SPACE') el.classList.add('vkb-qkey-space');
+        if (cell === 'ENTER') el.classList.add('vkb-qkey-mod', 'vkb-qkey-enter');
+        if (cell === 'ESC')   el.classList.add('vkb-qkey-mod', 'vkb-qkey-esc');
+        if (cell === 'LEFT' || cell === 'UP' || cell === 'DOWN' || cell === 'RIGHT') {
+            el.classList.add('vkb-qkey-arrow');
+        }
+        // Sticky modifiers visually highlight when active.
+        if (cell === 'SHIFT' && state.qwertyShift) el.classList.add('vkb-qkey-active');
+        if (cell === 'CTRL'  && state.qwertyCtrl)  el.classList.add('vkb-qkey-active');
+
+        el.textContent = qwertyLabel(cell);
 
         function fire() {
+            // Modifier toggle: stays on until the next non-modifier key,
+            // even across multiple modifier taps (so user can pre-arm
+            // Ctrl+Shift+letter if they really need it, though DCSS rarely
+            // uses that combo).
             if (cell === 'SHIFT') {
                 state.qwertyShift = !state.qwertyShift;
                 renderActions();
                 return;
             }
-            if (cell === 'BACK') {
-                injectKey({ key: 'Backspace', code: 'Backspace', charCode: 8 }, el);
+            if (cell === 'CTRL') {
+                state.qwertyCtrl = !state.qwertyCtrl;
+                renderActions();
                 return;
             }
-            if (cell === 'SPACE') {
-                injectKey({ key: ' ', code: 'Space', charCode: 32 }, el);
-                return;
-            }
+
             var btn = qwertyCellBtn(cell);
             if (!btn) return;
+
+            // Layer the sticky Ctrl modifier on top of whatever the cell
+            // produces. Shift for lower-case letters is already baked into
+            // the descriptor (see qwertyCellBtn above); for non-letters
+            // we still apply shiftKey so DCSS sees e.g. Shift+ArrowUp as
+            // "run upward" instead of plain Up.
+            if (state.qwertyCtrl) btn.ctrlKey = true;
+            if (state.qwertyShift && !btn.shiftKey) btn.shiftKey = true;
+
             injectKey(btn, el);
+
             // Single-letter follow-ups (e.g. Cast → spell-slot picker)
             // auto-return to the category view after one tap.
             if (state.mode === 'qwerty-once') setMode('category');
-            // After typing a shifted letter, drop shift back (matches the
-            // soft-keyboard idiom on iOS).
-            if (state.qwertyShift && /^[a-z]$/.test(cell)) {
+
+            // Auto-release sticky modifiers after firing one key. This is
+            // what the user asked for: tap Ctrl, tap S → Ctrl+S sent,
+            // both modifiers release. Simulates iOS soft-keyboard shift.
+            if (state.qwertyShift || state.qwertyCtrl) {
                 state.qwertyShift = false;
+                state.qwertyCtrl = false;
                 renderActions();
             }
         }
@@ -424,10 +525,16 @@
         return el;
     }
 
+    // Pick the layout based on mode: full keyboard for the Keyboard tab,
+    // compact for in-flow follow-up modes.
+    function pickQwertyLayout() {
+        return state.mode === 'qwerty-keyboard' ? KEYBOARD_LAYOUT : QWERTY_LAYOUT;
+    }
+
     function renderQwerty(container) {
         container.innerHTML = '';
         container.classList.add('vkb-qwerty');
-        QWERTY_LAYOUT.forEach(function (row) {
+        pickQwertyLayout().forEach(function (row) {
             var rowEl = document.createElement('div');
             rowEl.className = 'vkb-qrow';
             row.forEach(function (cell) {
@@ -615,6 +722,7 @@
         renderActions();
         updateModeIndicators();
         document.body.classList.add('vkb-active');
+        document.body.classList.toggle('vkb-mode-keyboard', state.mode === 'qwerty-keyboard');
         updateToggle(true);
         try { localStorage.setItem('vkb-enabled', '1'); } catch (e) {}
     }
@@ -623,6 +731,7 @@
         var overlay = document.getElementById('vkb-overlay');
         if (overlay) overlay.remove();
         document.body.classList.remove('vkb-active');
+        document.body.classList.remove('vkb-mode-keyboard');
         updateToggle(false);
         try { localStorage.setItem('vkb-enabled', '0'); } catch (e) {}
     }
