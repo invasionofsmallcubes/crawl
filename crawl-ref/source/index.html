@@ -114,75 +114,40 @@
       border-color: #4a7a4a;
   }
 
-  /* VKB toggle row */
-  .vkb-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 0.88rem;
-      color: #888;
+  /* Secondary "or try ASCII" link, sized down so it doesn't compete with
+     the Tiles call-to-action. */
+  .ascii-note {
+      font-size: 0.78rem;
+      color: #666;
+      text-align: center;
+      max-width: 480px;
   }
-
-  /* Toggle switch */
-  .switch {
-      position: relative;
-      width: 44px;
-      height: 24px;
-      flex-shrink: 0;
+  .ascii-note a {
+      color: #79c;
+      text-decoration: underline dotted;
   }
-  .switch input { display: none; }
-  .slider {
-      position: absolute;
-      inset: 0;
-      background: #333;
-      border-radius: 24px;
-      cursor: pointer;
-      transition: background 0.2s;
-      touch-action: manipulation;
-  }
-  .slider::before {
-      content: '';
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      left: 3px;
-      top: 3px;
-      background: #888;
-      border-radius: 50%;
-      transition: transform 0.2s, background 0.2s;
-  }
-  .switch input:checked + .slider { background: #2a5a2a; }
-  .switch input:checked + .slider::before {
-      transform: translateX(20px);
-      background: #7f7;
-  }
+  .ascii-note a:hover { color: #9ad; }
 
   footer {
-      color: #444;
+      color: #555;
       font-size: 0.72rem;
       text-align: center;
+      line-height: 1.6;
   }
+  footer a {
+      color: #79c;
+      text-decoration: underline dotted;
+  }
+  footer a:hover { color: #9ad; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>Dungeon Crawl Stone Soup</h1>
-  <p class="subtitle">WebAssembly port — choose your version</p>
 </header>
 
 <div class="cards">
-  <a class="card" id="card-ascii" href="ascii.html" tabindex="0">
-    <div class="card-mode">ASCII · Terminal</div>
-    <div class="card-title">Classic</div>
-    <div class="card-desc">
-      Full DCSS experience rendered in a terminal. Fast load,
-      works on any device with a keyboard.
-    </div>
-    <div class="card-size">~5 MB download</div>
-    <div class="card-play">Play ASCII →</div>
-  </a>
-
   <a class="card" id="card-tiles" href="tiles.html" tabindex="0">
     <div class="card-mode">Tiles · Graphics</div>
     <div class="card-title">Tiles</div>
@@ -190,47 +155,30 @@
       Sprite-based graphics via SDL2 and WebGL.
       Dungeon, HUD, and menus rendered with tiles.
     </div>
-    <div class="card-size">~55 MB download</div>
+    <div class="card-desc">
+      Optimised for iOS mobile: extra title splashes culled and tile
+      atlases pngquant'd so the bundle fits inside Safari's per-tab
+      WebAssembly memory ceiling. Without these changes the game crashed.
+    </div>
+    <div class="card-size">~18 MB download (gzipped)</div>
     <div class="card-play">Play Tiles →</div>
   </a>
 </div>
 
-<div class="vkb-row">
-  <label class="switch" title="Adds an on-screen d-pad and action buttons for touch devices">
-    <input type="checkbox" id="vkb-check">
-    <span class="slider"></span>
-  </label>
-  <span>Virtual keyboard <span style="color:#555">(for mobile / touchscreen)</span></span>
-</div>
+<p class="ascii-note">
+  Or try the <a id="link-ascii" href="ascii.html">ASCII version</a> —
+  note that the ASCII build is not maintained as actively as the Tiles version.
+</p>
 
 <footer>
-  Dungeon Crawl Stone Soup is open-source.<br>
-  This WASM port runs entirely in your browser — no server needed.
+  Dungeon Crawl Stone Soup is licensed under the
+  <a href="https://github.com/invasionofsmallcubes/crawl/blob/0.34.1-wasm/LICENSE"
+     target="_blank" rel="noopener">GNU GPL v2 or later</a>.
+  Source code (this WASM port):
+  <a href="https://github.com/invasionofsmallcubes/crawl/tree/0.34.1-wasm"
+     target="_blank" rel="noopener">github.com/invasionofsmallcubes/crawl</a>.<br>
+  Runs entirely in your browser — no server-side game state.
 </footer>
-
-<script>
-(function () {
-    var check = document.getElementById('vkb-check');
-
-    // Restore preference from localStorage.
-    var stored;
-    try { stored = localStorage.getItem('vkb-enabled'); } catch (e) {}
-    if (stored === '1') check.checked = true;
-
-    check.addEventListener('change', function () {
-        try { localStorage.setItem('vkb-enabled', check.checked ? '1' : '0'); } catch (e) {}
-        updateLinks();
-    });
-
-    function updateLinks() {
-        var vkb = check.checked ? '?vkb=1' : '';
-        document.getElementById('card-ascii').href = 'ascii.html' + vkb;
-        document.getElementById('card-tiles').href = 'tiles.html' + vkb;
-    }
-
-    updateLinks();
-}());
-</script>
 
 <script>
 if ('serviceWorker' in navigator) {

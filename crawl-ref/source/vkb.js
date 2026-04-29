@@ -785,11 +785,13 @@
 
     createToggle();
 
+    // Default ON: only stay unmounted if the user explicitly disabled it
+    // via the in-overlay ⌨/✕ toggle (which writes 'vkb-enabled':'0' to
+    // localStorage). New visitors get the on-screen keyboard immediately —
+    // the game is primarily targeted at touch devices.
     var enabledPref;
     try { enabledPref = localStorage.getItem('vkb-enabled'); } catch (e) {}
-    var wantsVkb = new URLSearchParams(location.search).get('vkb') === '1'
-                   || enabledPref === '1';
-    if (wantsVkb) mount();
+    if (enabledPref !== '0') mount();
 
     window.vkbMount   = mount;
     window.vkbUnmount = unmount;
