@@ -12,7 +12,12 @@ primary_region = "fra"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  # Keep one machine of the LATEST deployment always running. With 0 here,
+  # fly's auto-start picks any stopped machine when traffic hits an idle
+  # app — including stale machines from earlier deploys that haven't been
+  # cleaned up — and serves old code from them. Pinning at least one
+  # latest-deploy machine to "started" forces fresh code to handle traffic.
+  min_machines_running = 1
   processes = ["app"]
 
 [[vm]]

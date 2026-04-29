@@ -4,12 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dungeon Crawl Stone Soup — WebAssembly</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#111111">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -240,31 +234,25 @@
 
 <script>
 if ('serviceWorker' in navigator) {
-    // hadController is captured at script load: any controllerchange that
-    // fires later is an *upgrade* of an already-installed SW, which is the
-    // only case where reloading is meaningful. The first-ever install also
-    // fires controllerchange (null → SW from clients.claim()), but reloading
-    // there would just churn — so we gate on hadController.
-    var hadController = !!navigator.serviceWorker.controller;
-    var refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (!hadController || refreshing) return;
-        refreshing = true;
-        location.reload();
-    });
-    window.addEventListener('load', function () {
-        // updateViaCache: 'none' bypasses the HTTP cache for /sw.js fetches.
-        // Without it, iOS Safari's HTTP cache can serve a stale sw.js to the
-        // browser's update-check probe — Caddy's Cache-Control: no-cache
-        // headers are advisory there. registration.update() forces an
-        // immediate check on every page load, defeating the browser's
-        // default ~24h SW update interval. Together they make new deploys
-        // pick up within one page navigation: new bytes → skipWaiting →
-        // activate → clients.claim → controllerchange → reload above.
-        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-            .then(function (reg) { if (reg && reg.update) reg.update().catch(function () {}); })
-            .catch(function (e) { console.warn('SW registration failed:', e); });
-    });
+    // PWA support has been removed. Defensive teardown for users who had
+    // an earlier deploy installed: walk every registered SW and unregister
+    // it, then drop any cache it left behind. Idempotent — after the first
+    // page load that hits this code, there's nothing left to clean up.
+    // /sw.js itself is gone; old SWs that probe for an update will get a
+    // 404, which the spec says should unregister them. This snippet is a
+    // belt for the suspenders, in case some client never sees that probe.
+    navigator.serviceWorker.getRegistrations()
+        .then(function (regs) { regs.forEach(function (r) { r.unregister(); }); })
+        .catch(function () {});
+    if ('caches' in window) {
+        caches.keys()
+            .then(function (names) {
+                names.forEach(function (n) {
+                    if (n.indexOf('dcss-') === 0) caches.delete(n);
+                });
+            })
+            .catch(function () {});
+    }
 }
 </script>
 

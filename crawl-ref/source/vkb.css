@@ -1,51 +1,90 @@
-/* Virtual keyboard overlay — translucent overlay floating over the game.
-   The game viewport renders at full size beneath it; the overlay covers the
-   bottom ~30vh (HUD/message log area) when active. */
+/* Virtual keyboard overlay — translucent panel floating over the bottom
+   of the game viewport. Layout: actions panel on the left, d-pad column
+   on the right, in both portrait and landscape.
+   --vkb-h drives both the overlay height and the dpad cell math; we set
+   it on :root so other rules below (and the toggle button position)
+   can reference the same value with a single source of truth. */
+:root {
+    --vkb-h: 30vh;
+}
 #vkb-overlay {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 30vh;
+    height: var(--vkb-h);
     background: rgba(17, 17, 17, 0.55);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    flex-direction: row;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     padding: 8px;
     z-index: 1000;
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
+    box-sizing: border-box;
 }
 
-/* D-pad: 3×3 grid, square, sized at ~28% of overlay width so it stays
-   compact and leaves the action panel plenty of room. */
-#vkb-dpad {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 3px;
-    width: 28%;
-    aspect-ratio: 1;
-    height: auto;
-    align-self: center;
-    flex-shrink: 0;
-}
-
-/* Actions panel fills remaining width */
-#vkb-actions {
-    flex: 1;
+/* Body row: actions panel on the left, d-pad column on the right. The
+   tab strip (#vkb-tabs) sits above this row, spanning the full overlay
+   width. Switching tabs only re-renders #vkb-buttons inside this row;
+   the d-pad column on the right is mounted once and stays put. */
+#vkb-body {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
+    flex-direction: row;
+    flex: 1;
+    gap: 8px;
+    min-height: 0;
     overflow: hidden;
 }
 
-/* Category tab strip */
+/* D-pad column: 3×3 d-pad on top, [Enter|Esc] row underneath. The whole
+   column self-sizes from its content (d-pad cells have a fixed grid
+   based on overlay height; meta row is fixed-height). */
+#vkb-dpadwrap {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-self: center;
+}
+
+/* D-pad cells are sized as a fraction of overlay height so they stay
+   thumb-sized in any orientation. (Was 28% of width; broke down in
+   landscape where the overlay was wider than tall.) The 70px subtracted
+   accounts for the meta row + tabs + gaps; 64px upper bound keeps the
+   d-pad reasonable on tall portrait phones where --vkb-h can exceed
+   500px. */
+#vkb-dpad {
+    --dpad-cell: clamp(36px, calc((var(--vkb-h) - 70px) / 3), 64px);
+    display: grid;
+    grid-template-columns: repeat(3, var(--dpad-cell));
+    grid-template-rows:    repeat(3, var(--dpad-cell));
+    gap: 3px;
+}
+
+#vkb-dpad-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+}
+.vkb-meta-btn {
+    height: 36px;
+    font-size: 13px;
+    min-width: 0;
+}
+/* When a follow-up is pending (qwerty mode) the Esc button is highlighted
+   so the user knows there's a "back" action queued. */
+#vkb-esc.vkb-meta-active {
+    background: rgba(80, 30, 30, 0.95);
+    border-color: rgba(255, 120, 120, 0.45);
+    color: #fdd;
+}
+
+/* Category tab strip — fixed-height row across the top of the actions panel. */
 #vkb-tabs {
     display: flex;
     gap: 4px;
@@ -64,8 +103,16 @@
     font-size: 12px;
     white-space: nowrap;
     cursor: pointer;
-    touch-action: manipulation;
+    /* pan-x lets the tab strip scroll horizontally on touch even when the
+       finger lands on a tab. Without this (or with the previous
+       touch-action: manipulation), Safari intercepts the touch as a tap
+       candidate and never lets the swipe become a scroll. */
+    touch-action: pan-x;
     -webkit-tap-highlight-color: transparent;
+    /* Tabs must keep their natural width — letting flex-shrink squash them
+       defeats overflow-x: auto on the parent (the strip never overflows
+       because every tab compresses to fit). */
+    flex-shrink: 0;
 }
 .vkb-tab.active {
     background: #1a2e1a;
@@ -73,9 +120,10 @@
     border-color: #3a5a3a;
 }
 
-/* Action button grid */
+/* Action button grid (category-buttons mode). */
 #vkb-buttons {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
@@ -84,6 +132,54 @@
     scrollbar-width: none;
 }
 #vkb-buttons::-webkit-scrollbar { display: none; }
+
+/* Qwerty mode: same #vkb-buttons container, but laid out as fixed rows
+   filling height. The .vkb-qwerty class is set by renderQwerty() to flip
+   the flex direction from horizontal (button wrap) to vertical (rows). */
+#vkb-buttons.vkb-qwerty {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 4px;
+    overflow: hidden;
+}
+.vkb-qrow {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    min-height: 0;
+    justify-content: center;
+}
+.vkb-qkey {
+    flex: 1;
+    min-width: 0;
+    background: rgba(36, 36, 36, 0.9);
+    color: #ddd;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+    font-size: 15px;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+    transition: background 0.08s;
+}
+.vkb-qkey:active {
+    background: rgba(64, 64, 64, 0.95);
+}
+/* Modifier keys (shift, backspace) get a subtle accent. */
+.vkb-qkey-mod {
+    background: rgba(28, 36, 48, 0.9);
+    flex: 1.4;
+    color: #cde;
+}
+.vkb-qkey-back {
+    flex: 1.6;
+}
+/* Space bar is wide. */
+.vkb-qkey-space {
+    flex: 5;
+}
 
 /* Base button style — two-line label (action name + shortcut). */
 .vkb-btn {
@@ -126,15 +222,12 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    font-size: 16px;
+    font-size: 18px;
     border-radius: 4px;
     padding: 0;
 }
-
-/* The center "wait" cell is slightly dimmer to distinguish it */
 .vkb-dpad-btn.vkb-wait {
     color: #666;
-    font-size: 16px;
 }
 
 /* Toggle button — always visible, floats above page or above VKB */
@@ -159,15 +252,25 @@
     transition: bottom 0.15s;
 }
 body.vkb-active #vkb-toggle {
-    bottom: calc(30vh + 8px);
+    bottom: calc(var(--vkb-h) + 8px);
 }
 
-/* Landscape: even shorter VKB so HUD remains visible. */
+/* Portrait: extend the overlay up to the bottom of the canvas. The
+   canvas is rendered at width=100vw with aspect-ratio 4:3, so its
+   height is 75vw, sitting beneath a status row of --status-h (set in
+   tiles.html, default 30px). Whatever height remains under that is
+   pure black margin; we hand it all to the VKB for thumbable buttons.
+   The 8px subtracted leaves a hairline gap above the overlay so the
+   canvas border isn't flush against it. */
+@media (orientation: portrait) {
+    :root {
+        --vkb-h: max(30vh, calc(100dvh - var(--status-h, 30px) - 75vw - 8px));
+    }
+}
+
+/* Landscape: shorter overlay so the canvas (which fills viewport height
+   in landscape) stays usable. */
 @media (orientation: landscape) {
-    #vkb-overlay {
-        height: 28vh;
-    }
-    body.vkb-active #vkb-toggle {
-        bottom: calc(28vh + 8px);
-    }
+    :root { --vkb-h: 28vh; }
+    .vkb-meta-btn { height: 32px; font-size: 12px; }
 }

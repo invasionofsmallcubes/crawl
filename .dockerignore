@@ -13,14 +13,6 @@
 !crawl-ref/source/index_tiles.html
 !crawl-ref/source/vkb.js
 !crawl-ref/source/vkb.css
-!crawl-ref/source/manifest.webmanifest
-!crawl-ref/source/sw.js
-!crawl-ref/source/icon.svg
-!crawl-ref/source/icon-maskable.svg
-!crawl-ref/source/apple-touch-icon.png
-!crawl-ref/source/icon-192.png
-!crawl-ref/source/icon-512.png
-!crawl-ref/source/icon-maskable-512.png
 !crawl-ref/source/vendor/
 !crawl-ref/source/vendor/**
 !crawl-ref/source/crawl.js

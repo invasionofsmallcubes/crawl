@@ -4,12 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DCSS ASCII — WebAssembly</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#111111">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #000; display: flex; flex-direction: column; align-items: flex-start;
@@ -204,19 +198,19 @@ Module.onAbort = function(what) {
 <script src="vkb.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-    // See index.html for the rationale; same registration logic on every page.
-    var hadController = !!navigator.serviceWorker.controller;
-    var refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (!hadController || refreshing) return;
-        refreshing = true;
-        location.reload();
-    });
-    window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-            .then(function (reg) { if (reg && reg.update) reg.update().catch(function () {}); })
-            .catch(function (e) { console.warn('SW registration failed:', e); });
-    });
+    // See index.html for the rationale; PWA teardown only.
+    navigator.serviceWorker.getRegistrations()
+        .then(function (regs) { regs.forEach(function (r) { r.unregister(); }); })
+        .catch(function () {});
+    if ('caches' in window) {
+        caches.keys()
+            .then(function (names) {
+                names.forEach(function (n) {
+                    if (n.indexOf('dcss-') === 0) caches.delete(n);
+                });
+            })
+            .catch(function () {});
+    }
 }
 </script>
 </body>
