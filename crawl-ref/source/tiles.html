@@ -8,21 +8,25 @@
   html, body { height: 100%; }
   body { margin: 0; background: #000; color: #c0c0c0;
          font: 13px monospace; overflow: hidden; }
-  #status { padding: 6px 10px; border-bottom: 1px solid #222;
-            box-sizing: border-box; }
   /* Fit the canvas inside the viewport while preserving the 1024:768 aspect
-     ratio. The HTML width/height attributes stay at 1024×768 (WebGL viewport);
-     CSS only affects the display size. The min() picks the smaller of:
-       - 100vw (limited by viewport width — portrait case)
-       - the width that makes the height fit under the status bar — landscape
-     so neither dimension overflows. --status-h covers the #status row. */
-  :root { --status-h: 30px; }
+     ratio. min() picks the smaller of full viewport width (portrait) or the
+     width that makes the height fit the viewport (landscape). --status-h is
+     kept as a hook for any future top chrome but is currently 0 (we removed
+     the loading-status row to give the canvas the entire viewport). */
+  :root { --status-h: 0px; }
   #canvas { display: block; border: 0; outline: none;
             width: min(100vw, calc((100dvh - var(--status-h)) * 4 / 3));
             max-width: 1024px;
             aspect-ratio: 1024 / 768;
             height: auto;
-            margin: 0 auto; background: #000; }
+            margin: 0 auto; background: #000;
+            /* Pinch-zoom is implemented in JS below by applying a CSS
+               transform to this element. transform-origin pins the
+               anchor point at the visual top-left so the math stays
+               simple; touch-action: none stops Safari from running its
+               own page-pinch when the user pinches on the canvas. */
+            transform-origin: 0 0;
+            touch-action: none; }
   /* dvh fallback for older browsers (treat as vh). */
   @supports not (height: 100dvh) {
     #canvas { width: min(100vw, calc((100vh - var(--status-h)) * 4 / 3)); }
@@ -31,7 +35,6 @@
 </style>
 </head>
 <body>
-<div id="status">Loading DCSS Tiles…</div>
 <canvas id="canvas" tabindex="-1" width="1024" height="768"></canvas>
 <script>
 window.DCSS_MODE = 'tiles';
@@ -66,13 +69,12 @@ window.Module = {
     printErr: function(t) { console.warn('[stderr]', t); },
 
     onAbort: function(what) {
-        document.getElementById('status').textContent = 'DCSS ABORTED: ' + what;
+        // No on-page status banner any more — log to the console and let
+        // the user see whatever the canvas currently shows.
         console.error('[dcss] onAbort:', what);
     },
 
     onRuntimeInitialized: function() {
-        document.getElementById('status').textContent =
-            'DCSS Tiles running — click the canvas and start playing';
         document.getElementById('canvas').focus();
     },
 
@@ -85,6 +87,102 @@ window.Module = {
 window.addEventListener('beforeunload', function() {
     try { FS.syncfs(false, function(e) {}); } catch (e) {}
 });
+
+// ---------------------------------------------------------------------------
+// Pinch-to-zoom on the canvas. CSS transform only — the SDL2 render target
+// stays at 1024×768; we just up-/down-scale the visual presentation. Two
+// fingers pinch to zoom and pan; one finger always passes through so SDL2
+// keeps receiving normal mouse-on-tile events. Double-tap with one finger
+// resets to 1× when the user gets lost.
+// ---------------------------------------------------------------------------
+(function () {
+    var canvas = document.getElementById('canvas');
+    if (!canvas) return;
+
+    var scale = 1, tx = 0, ty = 0;
+    var pinch = null;          // active two-finger gesture state
+    var lastTap = 0;           // for double-tap-to-reset detection
+
+    function setTransform() {
+        canvas.style.transform =
+            'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    }
+    function resetTransform() {
+        scale = 1; tx = 0; ty = 0;
+        setTransform();
+    }
+    function dist(a, b) {
+        var dx = a.clientX - b.clientX, dy = a.clientY - b.clientY;
+        return Math.sqrt(dx*dx + dy*dy);
+    }
+    function midpoint(a, b) {
+        return { x: (a.clientX + b.clientX) / 2,
+                 y: (a.clientY + b.clientY) / 2 };
+    }
+    function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+    canvas.addEventListener('touchstart', function (e) {
+        if (e.touches.length >= 2) {
+            // Begin a pinch — capture starting state so we can compute
+            // deltas without floating-point drift over the gesture.
+            // getBoundingClientRect returns the POST-transform rect, so
+            // rect.left = originalLeft + tx; we use that fact below to
+            // back-derive originalLeft on the move handler.
+            e.preventDefault();
+            var rect = canvas.getBoundingClientRect();
+            var m = midpoint(e.touches[0], e.touches[1]);
+            pinch = {
+                startDist:    dist(e.touches[0], e.touches[1]),
+                startMid:     m,
+                startScale:   scale,
+                startTx:      tx,
+                startTy:      ty,
+                startRectL:   rect.left,
+                startRectT:   rect.top,
+                // Focal point in pre-transform canvas-local coords. The
+                // current scale factor maps post-transform screen to local.
+                focalCanvasX: (m.x - rect.left) / scale,
+                focalCanvasY: (m.y - rect.top)  / scale,
+            };
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', function (e) {
+        if (pinch && e.touches.length >= 2) {
+            e.preventDefault();
+            var d = dist(e.touches[0], e.touches[1]);
+            var m = midpoint(e.touches[0], e.touches[1]);
+            var newScale = clamp(pinch.startScale * (d / pinch.startDist), 1, 4);
+            // Keep the focal canvas-local point glued to the current
+            // finger midpoint while scaling. originalLeft = startRectL -
+            // startTx (rect was post-transform when captured), and we
+            // need: m.x = originalLeft + newTx + focalCanvasX * newScale.
+            // Solving for newTx and simplifying:
+            tx = m.x + pinch.startTx - pinch.startRectL - pinch.focalCanvasX * newScale;
+            ty = m.y + pinch.startTy - pinch.startRectT - pinch.focalCanvasY * newScale;
+            scale = newScale;
+            setTransform();
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', function (e) {
+        if (e.touches.length < 2) {
+            pinch = null;
+            // Snap back to identity if the user pinched out almost to 1×.
+            if (scale < 1.05) resetTransform();
+        }
+        // Double-tap reset: two single-finger taps within 300ms while
+        // zoomed → restore 1×. Useful escape hatch.
+        if (e.changedTouches.length === 1 && scale > 1) {
+            var now = Date.now();
+            if (now - lastTap < 300) {
+                resetTransform();
+                e.preventDefault();
+            }
+            lastTap = now;
+        }
+    }, { passive: false });
+}());
 </script>
 <script src="crawl_tiles.js"></script>
 <script src="vkb.js"></script>

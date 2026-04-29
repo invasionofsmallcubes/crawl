@@ -8,8 +8,6 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #000; display: flex; flex-direction: column; align-items: flex-start;
          justify-content: flex-start; min-height: 100vh; overflow-x: hidden; padding: 4px; }
-  #status { color: #aaa; font-family: monospace; font-size: 12px; margin-bottom: 4px;
-            width: 100%; flex-shrink: 0; }
   /* Wrapper clips the scaled terminal so it never causes horizontal scroll */
   #term-wrap { width: 100%; overflow: hidden; flex-shrink: 0; }
   #terminal { border: 1px solid #333; transform-origin: top left; display: inline-block; }
@@ -17,7 +15,6 @@
 <link rel="stylesheet" href="vendor/xterm.css">
 </head>
 <body>
-<div id="status">Loading DCSS…</div>
 <div id="term-wrap"><div id="terminal"></div></div>
 
 <script src="vendor/xterm.js"></script>
@@ -161,7 +158,6 @@ Module.onExit = function(code) {
 };
 
 Module.onRuntimeInitialized = function() {
-    document.getElementById('status').textContent = 'DCSS running — click terminal and press a key to start';
     console.log('[dcss] onRuntimeInitialized — Module._dcss =', Module._dcss);
     term.focus();
     var lastWriteCount = 0;
@@ -190,8 +186,10 @@ Module.onRuntimeInitialized = function() {
 };
 
 Module.onAbort = function(what) {
-    document.getElementById('status').textContent = 'DCSS ABORTED: ' + what;
+    // No on-page status banner any more — log to console; surface the
+    // failure inline in the terminal too so it's visible without devtools.
     console.error('[dcss] onAbort:', what);
+    try { term.write('\r\n\x1b[31m[DCSS ABORTED: ' + what + ']\x1b[0m\r\n'); } catch (e) {}
 };
 </script>
 <script src="crawl.js"></script>

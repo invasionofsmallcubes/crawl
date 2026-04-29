@@ -6,6 +6,10 @@
    can reference the same value with a single source of truth. */
 :root {
     --vkb-h: 30vh;
+    /* Hoisted to :root so #vkb-dpadwrap can size itself to the dpad's
+       natural width in landscape (where the pane is fixed-positioned
+       and self-sizes to content rather than stretching to a parent). */
+    --dpad-cell: clamp(36px, calc((var(--vkb-h) - 70px) / 3), 64px);
 }
 #vkb-overlay {
     position: fixed;
@@ -59,7 +63,6 @@
    d-pad reasonable on tall portrait phones where --vkb-h can exceed
    500px. */
 #vkb-dpad {
-    --dpad-cell: clamp(36px, calc((var(--vkb-h) - 70px) / 3), 64px);
     display: grid;
     grid-template-columns: repeat(3, var(--dpad-cell));
     grid-template-rows:    repeat(3, var(--dpad-cell));
@@ -266,14 +269,15 @@ body.vkb-active #vkb-toggle {
 
 /* Portrait: extend the overlay up to the bottom of the canvas. The
    canvas is rendered at width=100vw with aspect-ratio 4:3, so its
-   height is 75vw, sitting beneath a status row of --status-h (set in
-   tiles.html, default 30px). Whatever height remains under that is
-   pure black margin; we hand it all to the VKB for thumbable buttons.
-   The 8px subtracted leaves a hairline gap above the overlay so the
-   canvas border isn't flush against it. */
+   height is 75vw. There used to be a status row above the canvas
+   (height = --status-h, kept as a 0-default hook for any future top
+   chrome). Whatever height remains under the canvas is pure black
+   margin; we hand it all to the VKB for thumbable buttons. The 8px
+   leaves a hairline gap above the overlay so the canvas border isn't
+   flush against it. */
 @media (orientation: portrait) {
     :root {
-        --vkb-h: max(30vh, calc(100dvh - var(--status-h, 30px) - 75vw - 8px));
+        --vkb-h: max(30vh, calc(100dvh - var(--status-h, 0px) - 75vw - 8px));
     }
 }
 
@@ -288,9 +292,143 @@ body.vkb-qwerty-active #vkb-dpadwrap { display: none; }
    the keys can stay a bit smaller). */
 body.vkb-mode-keyboard .vkb-qkey { font-size: 17px; }
 
-/* Landscape: shorter overlay so the canvas (which fills viewport height
-   in landscape) stays usable. */
+/* Landscape: switch from the bottom-bar layout to two side panes that
+   sit ON TOP of the canvas. The canvas already letterboxes itself in
+   landscape (its 4:3 ratio leaves vertical bands of empty space), and
+   the user explicitly OK'd the panes overlapping the gameplay area as
+   long as they're translucent. Layout, by viewport-third:
+       1/3 left   — d-pad + Enter/Esc pane.
+       1/3 middle — game canvas (visible through the panes).
+       1/3 right  — tabs (top) + action buttons / qwerty (below).
+   --vkb-h is no longer "overlay height" here — the panes are
+   position:fixed and self-size — but the dpad cell math still uses it
+   for the d-pad cell size, so we leave it at 28vh. */
 @media (orientation: landscape) {
-    :root { --vkb-h: 28vh; }
+    :root {
+        --vkb-h: 28vh;
+        /* Override the cell-size clamp formula in landscape: on iPhone
+           the formula bottomed out at the 36 px floor, which both made
+           the cells small AND tripped some iOS hit-test row-shift
+           weirdness on Safari (clicks landed one row up). 56 px is
+           comfortable for a thumb and the cells stop overflowing the
+           grid track. */
+        --dpad-cell: 56px;
+        /* Right pane is bottom-anchored at this fixed height. Tab strip
+           sits directly above it; both share the right column. The value
+           is matched roughly to the dpad column's intrinsic height so
+           the two side panes look like a pair. Adjust here if the right-
+           pane footprint needs tweaking. */
+        --vkb-pane-h: 220px;
+    }
     .vkb-meta-btn { height: 32px; font-size: 12px; }
+
+    /* Replace the dpad's CSS grid with a flex-wrap layout in landscape.
+       Same 3×3 visual but rows are flex containers that wrap, with each
+       button explicitly sized to var(--dpad-cell). iOS Safari hit-tests
+       this more reliably than grid when cells are tight; in particular
+       it avoids the "click one row up" symptom we saw with grid. */
+    #vkb-dpad {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        width: calc(3 * var(--dpad-cell) + 6px);
+    }
+    .vkb-dpad-btn {
+        width: var(--dpad-cell);
+        height: var(--dpad-cell);
+        flex: 0 0 var(--dpad-cell);
+    }
+
+    /* Overlay becomes a transparent positioning context that doesn't
+       block taps on the canvas underneath. Each pane re-enables its
+       own pointer-events. */
+    #vkb-overlay {
+        height: 100dvh;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-top: none;
+        padding: 0;
+        gap: 0;
+        display: block;
+        pointer-events: none;
+    }
+
+    /* Dissolve the body wrapper so the dpad column and the tab+buttons
+       group act as direct fixed-position children of the overlay. */
+    #vkb-body { display: contents; }
+
+    /* Left pane: dpad + Enter/Esc, anchored bottom-left. Width snug to
+       the dpad's natural footprint (3 cells + 2 gaps + horizontal
+       padding). Snug width avoids the previous bug where the meta row
+       was forced to width:100% — wider than the dpad — and Enter/Esc
+       taps near the dpad's bottom row routed to the dpad cells above
+       because of how iOS Safari hit-tests overlapping flex children. */
+    #vkb-dpadwrap {
+        position: fixed;
+        left: 8px;
+        bottom: 8px;
+        width: calc(3 * var(--dpad-cell) + 6px + 16px);
+        gap: 6px;
+        padding: 8px;
+        background: rgba(17, 17, 17, 0.35);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        box-sizing: border-box;
+        pointer-events: auto;
+    }
+    /* Meta row sizes naturally to dpadwrap's content width (= dpad
+       width). No more width:100% override — same width as the dpad
+       above, so Enter/Esc occupy exactly the same horizontal range as
+       the dpad's bottom row, no overhang. */
+
+    /* Right pane bottom: action buttons / qwerty, fixed-height,
+       anchored bottom-right. */
+    #vkb-buttons {
+        position: fixed;
+        right: 8px;
+        bottom: 8px;
+        height: var(--vkb-pane-h);
+        width: calc(33vw - 16px);
+        padding: 8px;
+        background: rgba(17, 17, 17, 0.35);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        box-sizing: border-box;
+        pointer-events: auto;
+    }
+
+    /* Right pane top: tab strip, sitting directly above the buttons
+       pane (12px gap). Bottom-anchored so it moves up when --vkb-pane-h
+       grows. */
+    #vkb-tabs {
+        position: fixed;
+        right: 8px;
+        bottom: calc(var(--vkb-pane-h) + 12px);
+        width: calc(33vw - 16px);
+        padding: 6px;
+        background: rgba(17, 17, 17, 0.35);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        box-sizing: border-box;
+        pointer-events: auto;
+        /* Smooth horizontal scrolling on iOS: without this iOS Safari
+           sometimes refuses to scroll a horizontally-overflowing flex
+           container, treating finger drags as taps on individual tabs. */
+        -webkit-overflow-scrolling: touch;
+        overflow-x: auto;
+    }
+
+    /* Toggle button sits between the two panes so it isn't buried
+       under the right pane. */
+    body.vkb-active #vkb-toggle {
+        bottom: 8px;
+        right: calc(33vw + 16px);
+    }
 }
