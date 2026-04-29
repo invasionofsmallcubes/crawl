@@ -277,11 +277,15 @@ body.vkb-active #vkb-toggle {
     }
 }
 
-/* Keyboard tab: hide the d-pad column so the keyboard takes the full
-   overlay width (arrows + Enter + Esc live on the keyboard itself).
-   Overlay height is unchanged from the other tabs — the keyboard grows
-   horizontally, not vertically. */
-body.vkb-mode-keyboard #vkb-dpadwrap { display: none; }
+/* Whenever the keyboard is rendered (any qwerty mode — Look's letter
+   picker, Travel's text input, the explicit Keyboard tab), hide the
+   d-pad column so the keyboard gets the full overlay width. The
+   keyboard already contains arrows + Enter + Esc so the dpad is
+   redundant in those moments. Overlay height is unchanged. */
+body.vkb-qwerty-active #vkb-dpadwrap { display: none; }
+/* Keyboard-tab-specific touch-up: slightly bigger keys when the user
+   has explicitly opened the keyboard (vs. an in-flow follow-up where
+   the keys can stay a bit smaller). */
 body.vkb-mode-keyboard .vkb-qkey { font-size: 17px; }
 
 /* Landscape: shorter overlay so the canvas (which fills viewport height

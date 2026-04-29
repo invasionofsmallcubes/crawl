@@ -107,24 +107,10 @@
         },
     };
 
-    // Compact QWERTY layout — used for the in-flow follow-up modes
-    // (qwerty-once for 'Cast', qwerty-text for 'Travel'). Tabs and the
-    // d-pad column stay visible alongside it; the user only needs letters
-    // and a few punctuation keys to complete the in-game prompt.
-    // Special tokens: SHIFT (toggle case, sticky-once), BACK (backspace),
-    // SPACE.
-    var QWERTY_LAYOUT = [
-        ['1','2','3','4','5','6','7','8','9','0'],
-        ['q','w','e','r','t','y','u','i','o','p'],
-        ['a','s','d','f','g','h','j','k','l'],
-        ['SHIFT','z','x','c','v','b','n','m','BACK'],
-        ['.',',',':','-','\'','SPACE'],
-    ];
-
-    // Full-keyboard layout — used when the Keyboard tab is selected
-    // (mode = 'qwerty-keyboard'). The d-pad column is hidden and the
-    // overlay grows nearly full-screen, so the keyboard has to be
-    // self-sufficient: arrows, Ctrl, Shift, Enter, Esc all live here.
+    // Full keyboard layout — used in every qwerty mode (in-flow follow-up
+    // for 'Cast'/'Look'/'Travel' etc., and the dedicated Keyboard tab).
+    // Includes arrows, Ctrl, Shift, Enter, Esc so the keyboard is fully
+    // self-sufficient regardless of whether the d-pad column is visible.
     // CTRL behaves like SHIFT — tap once to "stick", next non-modifier
     // key fires with that modifier (e.g. Ctrl+S), then both release.
     var KEYBOARD_LAYOUT = [
@@ -344,8 +330,12 @@
             state.qwertyShift = false;
             state.qwertyCtrl = false;
         }
-        // The full-screen Keyboard mode hides the d-pad and grows the
-        // overlay; CSS picks that up off the body class.
+        // Any qwerty mode hides the d-pad column — the keyboard already
+        // contains arrows + Enter + Esc, so the dpad is redundant. Keep
+        // 'vkb-mode-keyboard' for any keyboard-tab-specific tweaks (e.g.
+        // bigger key font), separate from the more general "qwerty
+        // active" toggle.
+        document.body.classList.toggle('vkb-qwerty-active', isQwertyMode(newMode));
         document.body.classList.toggle('vkb-mode-keyboard', newMode === 'qwerty-keyboard');
         renderActions();
         updateModeIndicators();
@@ -508,9 +498,19 @@
 
             injectKey(btn, el);
 
-            // Single-letter follow-ups (e.g. Cast → spell-slot picker)
-            // auto-return to the category view after one tap.
-            if (state.mode === 'qwerty-once') setMode('category');
+            // Mode transitions — mirror handleEnter / handleEsc on the
+            // dpad-meta buttons so the keyboard's own ENTER/ESC behave
+            // the same way as the right-column buttons:
+            //   - qwerty-once: any key returns to category (e.g. Look→V).
+            //   - qwerty-text: only ENTER (submit) or ESC (cancel) returns.
+            //   - qwerty-keyboard: ESC also returns; everything else stays.
+            if (state.mode === 'qwerty-once') {
+                setMode('category');
+            } else if (state.mode === 'qwerty-text' && (cell === 'ENTER' || cell === 'ESC')) {
+                setMode('category');
+            } else if (state.mode === 'qwerty-keyboard' && cell === 'ESC') {
+                setMode('category');
+            }
 
             // Auto-release sticky modifiers after firing one key. This is
             // what the user asked for: tap Ctrl, tap S → Ctrl+S sent,
@@ -525,16 +525,10 @@
         return el;
     }
 
-    // Pick the layout based on mode: full keyboard for the Keyboard tab,
-    // compact for in-flow follow-up modes.
-    function pickQwertyLayout() {
-        return state.mode === 'qwerty-keyboard' ? KEYBOARD_LAYOUT : QWERTY_LAYOUT;
-    }
-
     function renderQwerty(container) {
         container.innerHTML = '';
         container.classList.add('vkb-qwerty');
-        pickQwertyLayout().forEach(function (row) {
+        KEYBOARD_LAYOUT.forEach(function (row) {
             var rowEl = document.createElement('div');
             rowEl.className = 'vkb-qrow';
             row.forEach(function (cell) {
@@ -722,6 +716,7 @@
         renderActions();
         updateModeIndicators();
         document.body.classList.add('vkb-active');
+        document.body.classList.toggle('vkb-qwerty-active', isQwertyMode(state.mode));
         document.body.classList.toggle('vkb-mode-keyboard', state.mode === 'qwerty-keyboard');
         updateToggle(true);
         try { localStorage.setItem('vkb-enabled', '1'); } catch (e) {}
@@ -731,6 +726,7 @@
         var overlay = document.getElementById('vkb-overlay');
         if (overlay) overlay.remove();
         document.body.classList.remove('vkb-active');
+        document.body.classList.remove('vkb-qwerty-active');
         document.body.classList.remove('vkb-mode-keyboard');
         updateToggle(false);
         try { localStorage.setItem('vkb-enabled', '0'); } catch (e) {}
