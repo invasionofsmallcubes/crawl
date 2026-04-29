@@ -192,6 +192,42 @@
     border-color: rgba(180, 230, 140, 0.65);
     color: #efd;
 }
+/* Touch-tracking highlight — applied while the user's finger is on (or
+   has slid to) a qwerty key. Lifting the finger commits whatever key
+   currently has this class, supporting iOS-style "press one, swipe to
+   another, lift" entry. Visually distinct from .vkb-qkey-active so
+   sticky-modifier and active-touch don't blur together. */
+.vkb-qkey-touch {
+    background: rgba(120, 160, 90, 0.95);
+    border-color: rgba(200, 240, 160, 0.85);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(180, 230, 140, 0.55);
+}
+
+/* Key-preview popup — pinned above the user's finger while a qwerty
+   touch is in progress. Mirrors the currently-highlighted key's label
+   in a large legible balloon, so the user can see which key would
+   commit on lift even when the finger is covering the key itself. */
+#vkb-key-preview {
+    position: fixed;
+    z-index: 2000;
+    pointer-events: none;
+    display: none;
+    transform: translate(-50%, 0);
+    min-width: 56px;
+    padding: 12px 18px;
+    background: rgba(40, 60, 30, 0.95);
+    color: #fff;
+    border: 1px solid rgba(200, 240, 160, 0.85);
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+    font-size: 32px;
+    line-height: 1;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    text-align: center;
+    -webkit-user-select: none;
+    user-select: none;
+}
 
 /* Base button style — two-line label (action name + shortcut). */
 .vkb-btn {

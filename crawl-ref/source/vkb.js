@@ -453,6 +453,7 @@
     function makeQwertyKey(cell) {
         var el = document.createElement('button');
         el.className = 'vkb-qkey';
+        el.dataset.cell = cell;
 
         // Visual classification — drives flex sizing in CSS.
         if (cell === 'SHIFT' || cell === 'CTRL') el.classList.add('vkb-qkey-mod');
@@ -521,7 +522,19 @@
                 renderActions();
             }
         }
-        bindTap(el, fire);
+        // Stash fire on the element so the container-level touch handler
+        // (bindQwertyTouches) can call it on touchend with whichever key
+        // the user lifted on, supporting "press one, slide to another,
+        // lift" iOS-style entry.
+        el._vkbFire = fire;
+        // Mouse fallback for desktop. Touch is handled at the container
+        // level (capture-phase listener), which stopPropagation()s before
+        // the event reaches this listener — so on iOS this mousedown
+        // path doesn't double-fire.
+        el.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            fire();
+        });
         return el;
     }
 
@@ -536,6 +549,109 @@
             });
             container.appendChild(rowEl);
         });
+    }
+
+    // Container-level touch handler that implements iOS-style "press,
+    // slide between keys, lift to commit" on the qwerty keyboard. The
+    // handler is attached once (in mount) in the capture phase: when in
+    // a qwerty mode, it intercepts touchstart/move/end before they
+    // reach individual keys, calls stopPropagation, and manages a
+    // single highlighted key whose `_vkbFire` is invoked on lift.
+    // In non-qwerty (category-buttons) modes the handler is a no-op so
+    // each button's own bindTap fires immediately on touchstart as
+    // before.
+    // Module-level singleton: a popup pinned above the finger that mirrors
+    // the currently-highlighted key. Lazily mounted on first use.
+    var keyPreview = null;
+    function ensureKeyPreview() {
+        if (keyPreview) return keyPreview;
+        keyPreview = document.createElement('div');
+        keyPreview.id = 'vkb-key-preview';
+        document.body.appendChild(keyPreview);
+        return keyPreview;
+    }
+    function showKeyPreview(key, touch) {
+        var p = ensureKeyPreview();
+        // Use the rendered key text for letters/digits/punct so the
+        // popup reflects the active shift state (key's textContent was
+        // computed via qwertyLabel at render time). SPACE has no
+        // visible glyph in the key itself; show ␣ in the popup so the
+        // user sees something.
+        var label = key.textContent;
+        if (key.dataset.cell === 'SPACE') label = '␣';
+        p.textContent = label;
+        p.style.display = 'block';
+        // Pin above the finger. Clamp Y so the popup never falls off
+        // the top of the viewport on small phones / status bars.
+        p.style.left = touch.clientX + 'px';
+        p.style.top  = Math.max(8, touch.clientY - 80) + 'px';
+    }
+    function hideKeyPreview() {
+        if (keyPreview) keyPreview.style.display = 'none';
+    }
+
+    function bindQwertyTouches(container) {
+        var activeKey = null;
+
+        function setHighlight(key) {
+            if (activeKey === key) return;
+            if (activeKey) activeKey.classList.remove('vkb-qkey-touch');
+            if (key)       key.classList.add('vkb-qkey-touch');
+            activeKey = key;
+        }
+        function keyAt(touch) {
+            // elementFromPoint returns whichever element is rendered at
+            // the touch coordinates — that's the qwerty key under the
+            // user's finger after any panning. Walk up to the .vkb-qkey
+            // ancestor in case the touch lands on a child node.
+            var el = document.elementFromPoint(touch.clientX, touch.clientY);
+            while (el && el !== container) {
+                if (el.classList && el.classList.contains('vkb-qkey')) return el;
+                el = el.parentElement;
+            }
+            return null;
+        }
+        function syncPreview(key, touch) {
+            if (key) showKeyPreview(key, touch);
+            else     hideKeyPreview();
+        }
+
+        container.addEventListener('touchstart', function (e) {
+            if (!isQwertyMode(state.mode)) return;
+            if (e.touches.length > 1) return;          // ignore multi-touch
+            e.preventDefault();
+            e.stopPropagation();
+            var t = e.touches[0];
+            var key = keyAt(t);
+            setHighlight(key);
+            syncPreview(key, t);
+        }, { capture: true, passive: false });
+
+        container.addEventListener('touchmove', function (e) {
+            if (!isQwertyMode(state.mode)) return;
+            if (e.touches.length > 1) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var t = e.touches[0];
+            var key = keyAt(t);
+            setHighlight(key);
+            syncPreview(key, t);
+        }, { capture: true, passive: false });
+
+        container.addEventListener('touchend', function (e) {
+            if (!isQwertyMode(state.mode)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var fired = activeKey;
+            setHighlight(null);
+            hideKeyPreview();
+            if (fired && fired._vkbFire) fired._vkbFire();
+        }, { capture: true, passive: false });
+
+        container.addEventListener('touchcancel', function () {
+            setHighlight(null);
+            hideKeyPreview();
+        }, { capture: true });
     }
 
     // -----------------------------------------------------------------------
@@ -687,6 +803,7 @@
         var buttons = document.createElement('div');
         buttons.id = 'vkb-buttons';
         body.appendChild(buttons);
+        bindQwertyTouches(buttons);
 
         var dpadwrap = document.createElement('div');
         dpadwrap.id = 'vkb-dpadwrap';
