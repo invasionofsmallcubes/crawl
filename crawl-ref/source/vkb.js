@@ -822,8 +822,11 @@
         enterEl.id = 'vkb-enter';
         var escEl = makeBtn(ESC_BTN, 'vkb-meta-btn', handleEsc);
         escEl.id = 'vkb-esc';
-        meta.appendChild(enterEl);
+        // Esc on the left, Enter on the right — putting the destructive
+        // / "back" action at the thumb-rest position turned out to feel
+        // more natural in playtest than the original Enter|Esc order.
         meta.appendChild(escEl);
+        meta.appendChild(enterEl);
         dpadwrap.appendChild(meta);
 
         body.appendChild(dpadwrap);
