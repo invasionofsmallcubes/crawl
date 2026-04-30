@@ -120,6 +120,13 @@
     window.__diagSetStage = setStage;
     window.__diagShow     = show;
 
+    function formatError(r) {
+        if (!r) return 'unknown';
+        if (typeof r === 'string') return r;
+        var head = (r.name || 'Error') + ': ' + (r.message || '?');
+        return r.stack ? head + '\n' + r.stack : head;
+    }
+
     window.addEventListener('error', function (e) {
         // Filter CORS-masked errors. When a cross-origin script (or some
         // wasm-streaming fallback paths) throws, the browser surfaces a
@@ -131,14 +138,26 @@
         var msg = e.message || '';
         var sanitized = (/^Script error\.?$/i.test(msg) || msg === '');
         if (sanitized && !e.filename && !e.error) return;
+        var detail = e.error ? formatError(e.error) : msg;
         var loc = (e.filename ? (' @ ' + e.filename + ':' + e.lineno + ':' + e.colno) : '');
-        show('JS error', (msg || 'unknown error') + loc);
+        show('JS error', detail + loc);
     });
     window.addEventListener('unhandledrejection', function (e) {
-        var r = e.reason;
-        var msg = (r && r.stack) || (r && r.message) || String(r);
-        show('promise', msg);
+        show('promise', formatError(e.reason));
     });
+
+    // Boot-time capability check. JSPI requires Safari 18.4+ / Chrome 123+;
+    // older browsers will fail at instantiation with an opaque error.
+    // Surface the precise reason up front so reports tell us "browser
+    // doesn't support JSPI" instead of "promise rejected, no detail".
+    if (typeof WebAssembly === 'undefined' || typeof WebAssembly.Suspending !== 'function') {
+        show('boot', 'WebAssembly.Suspending is ' +
+             (typeof WebAssembly === 'undefined'
+                ? 'unavailable (no WebAssembly)'
+                : typeof WebAssembly.Suspending) +
+             '. This browser does not support JSPI; the wasm will fail to instantiate. ' +
+             'JSPI requires Safari 18.4+ or Chrome 123+.');
+    }
 }());
 </script>
 <script>
