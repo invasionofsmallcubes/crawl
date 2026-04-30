@@ -32,10 +32,115 @@
     #canvas { width: min(100vw, calc((100vh - var(--status-h)) * 4 / 3)); }
   }
   #canvas:focus { outline: 1px solid #335; }
+
+  /* Diagnostic banner — surfaces module-instantiation failures, runtime
+     aborts, and uncaught JS errors. Hidden by default, only appears on
+     failure. role="status" + aria-live="assertive" so screen readers
+     announce the message immediately. Pinned at the top so the user can
+     copy-paste it into a bug report without scrolling under the canvas. */
+  #diag-banner {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: rgba(80, 20, 20, 0.95);
+      color: #fff;
+      font: 13px ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      padding: 8px 36px 8px 10px;
+      border-bottom: 1px solid #c66;
+      box-sizing: border-box;
+      max-height: 50vh;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+  }
+  #diag-banner[hidden] { display: none; }
+  #diag-banner .diag-stage { color: #fcc; }
+  #diag-banner .diag-close {
+      position: absolute;
+      top: 4px; right: 6px;
+      background: transparent;
+      color: inherit;
+      border: 0;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 6px;
+  }
 </style>
 </head>
 <body>
+<div id="diag-banner" role="status" aria-live="assertive" hidden></div>
 <canvas id="canvas" tabindex="-1" width="1024" height="768"></canvas>
+<script>
+// ---------------------------------------------------------------------------
+// Diagnostic hook (installed BEFORE crawl_tiles.js loads so we catch
+// instantiation-time failures). Helps users on iOS Safari versions that
+// hit WASM compile-time memory limits tell us *what* went wrong instead
+// of seeing a blank black canvas. Surfaces:
+//   - WebAssembly.compile / instantiate errors  (window 'error' event)
+//   - Promise rejections from module loading    ('unhandledrejection')
+//   - Module.onAbort runtime traps              (wired below)
+//   - printErr lines that look like OOM/abort   (wired below)
+// Each message is tagged with a lifecycle "stage" so you can tell pre-
+// instantiate failure ("loading") from runtime failure ("running") from
+// startup failure ("preRun" / "instantiate").
+// ---------------------------------------------------------------------------
+(function () {
+    var stage = 'loading';
+    var banner = document.getElementById('diag-banner');
+
+    function setStage(s) { stage = s; }
+
+    function show(category, msg) {
+        if (!banner) return;
+        // Prepend rather than replace so multiple errors stack — the FIRST
+        // one is usually the most informative.
+        var line = document.createElement('div');
+        var head = document.createElement('span');
+        head.className = 'diag-stage';
+        head.textContent = '[' + category + ' / ' + stage + '] ';
+        line.appendChild(head);
+        line.appendChild(document.createTextNode(String(msg)));
+        if (banner.firstChild && banner.firstChild.classList && banner.firstChild.classList.contains('diag-close')) {
+            banner.insertBefore(line, banner.firstChild);
+        } else {
+            banner.insertBefore(line, banner.firstChild || null);
+        }
+        if (!banner.querySelector('.diag-close')) {
+            var btn = document.createElement('button');
+            btn.className = 'diag-close';
+            btn.setAttribute('aria-label', 'Dismiss diagnostic');
+            btn.textContent = '×';
+            btn.addEventListener('click', function () { banner.hidden = true; });
+            banner.appendChild(btn);
+        }
+        banner.hidden = false;
+    }
+
+    window.__diagSetStage = setStage;
+    window.__diagShow     = show;
+
+    window.addEventListener('error', function (e) {
+        // Filter CORS-masked errors. When a cross-origin script (or some
+        // wasm-streaming fallback paths) throws, the browser surfaces a
+        // sanitized 'error' event with message="Script error." / empty
+        // filename / no error object. Emscripten's loader catches and
+        // recovers from these internally, so the game keeps booting; the
+        // event is noise. Skip it. A real exception always carries either
+        // a filename or an error-with-stack.
+        var msg = e.message || '';
+        var sanitized = (/^Script error\.?$/i.test(msg) || msg === '');
+        if (sanitized && !e.filename && !e.error) return;
+        var loc = (e.filename ? (' @ ' + e.filename + ':' + e.lineno + ':' + e.colno) : '');
+        show('JS error', (msg || 'unknown error') + loc);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+        var r = e.reason;
+        var msg = (r && r.stack) || (r && r.message) || String(r);
+        show('promise', msg);
+    });
+}());
+</script>
 <script>
 window.DCSS_MODE = 'tiles';
 
@@ -65,21 +170,41 @@ window.Module = {
     canvas: document.getElementById('canvas'),
     arguments: ['-dir', '/crawl'],
 
+    // Lifecycle hooks — each advances the diagnostic stage so an error
+    // afterwards is tagged with where in the boot sequence it happened.
+    preRun: [function () { window.__diagSetStage && window.__diagSetStage('preRun'); }],
+    locateFile: function (path, prefix) {
+        if (window.__diagSetStage) window.__diagSetStage('fetching ' + path);
+        return prefix + path;
+    },
+
     print: function(t) { console.log('[stdout]', t); },
-    printErr: function(t) { console.warn('[stderr]', t); },
+    printErr: function(t) {
+        console.warn('[stderr]', t);
+        // Surface compile-time / runtime errors emitted by Emscripten's
+        // own logging path even if they don't reach onAbort. iOS WebKit
+        // tends to print "RangeError: WebAssembly.Memory()" or
+        // "out of memory" before unwinding to a hard abort.
+        if (/RangeError|out of memory|OOM|\babort\b|LinkError|CompileError/i.test(t)) {
+            window.__diagShow && window.__diagShow('emcc stderr', t);
+        }
+    },
 
     onAbort: function(what) {
-        // No on-page status banner any more — log to the console and let
-        // the user see whatever the canvas currently shows.
         console.error('[dcss] onAbort:', what);
+        if (window.__diagShow) window.__diagShow('runtime', 'DCSS aborted: ' + what);
     },
 
     onRuntimeInitialized: function() {
+        if (window.__diagSetStage) window.__diagSetStage('running');
         document.getElementById('canvas').focus();
     },
 
     onExit: function(code) {
         console.error('[dcss] exited with code', code);
+        if (code !== 0 && window.__diagShow) {
+            window.__diagShow('exit', 'DCSS exited with code ' + code);
+        }
         try { FS.syncfs(false, function(e) {}); } catch (e) {}
     }
 };
