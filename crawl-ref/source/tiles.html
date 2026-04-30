@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="dcss-version" content="__DEPLOY_VERSION__">
 <title>DCSS Tiles — WebAssembly</title>
 <style>
   html, body { height: 100%; }
@@ -330,6 +331,7 @@ window.addEventListener('beforeunload', function() {
 </script>
 <script src="crawl_tiles.js"></script>
 <script src="vkb.js"></script>
+<script src="version-check.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
     // See index.html for the rationale; PWA teardown only.

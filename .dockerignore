@@ -13,6 +13,7 @@
 !crawl-ref/source/index_tiles.html
 !crawl-ref/source/vkb.js
 !crawl-ref/source/vkb.css
+!crawl-ref/source/version-check.js
 !crawl-ref/source/vendor/
 !crawl-ref/source/vendor/**
 !crawl-ref/source/crawl.js

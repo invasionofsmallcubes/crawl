@@ -15,6 +15,12 @@
 	@bundles path /crawl.js /crawl.wasm /crawl.data /crawl_tiles.js /crawl_tiles.wasm /crawl_tiles.data
 	header @bundles Cache-Control "no-cache, must-revalidate"
 
+	# version-check.js polls /version.txt to detect a fresh deploy and
+	# nudge the user to reload. Must always go to origin — caching here
+	# would defeat the entire feature.
+	@version path /version.txt
+	header @version Cache-Control "no-cache, must-revalidate"
+
 	# Serve .wasm.gz / .data.gz when the client accepts gzip; the
 	# Dockerfile pre-compresses these files at build time so we don't
 	# burn CPU re-compressing 50MB on every cold-fetch.
