@@ -146,19 +146,6 @@
     window.addEventListener('unhandledrejection', function (e) {
         show('promise', formatError(e.reason));
     });
-
-    // Boot-time capability check. JSPI requires Safari 18.4+ / Chrome 123+;
-    // older browsers will fail at instantiation with an opaque error.
-    // Surface the precise reason up front so reports tell us "browser
-    // doesn't support JSPI" instead of "promise rejected, no detail".
-    if (typeof WebAssembly === 'undefined' || typeof WebAssembly.Suspending !== 'function') {
-        show('boot', 'WebAssembly.Suspending is ' +
-             (typeof WebAssembly === 'undefined'
-                ? 'unavailable (no WebAssembly)'
-                : typeof WebAssembly.Suspending) +
-             '. This browser does not support JSPI; the wasm will fail to instantiate. ' +
-             'JSPI requires Safari 18.4+ or Chrome 123+.');
-    }
 }());
 </script>
 <script>
