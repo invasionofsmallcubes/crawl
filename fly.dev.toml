@@ -1,0 +1,31 @@
+# fly.io config for the DEV environment of the DCSS-WASM site.
+#
+# Identical Dockerfile / build chain as fly.toml — only the app name and
+# the always-on machine count differ. Dev is allowed to fully scale to
+# zero (min_machines_running = 0) so it costs nothing while idle; prod
+# keeps one machine warm so visitors never wait for a cold start.
+#
+# Deploy to dev with:
+#   flyctl deploy --config fly.dev.toml --remote-only --strategy immediate \
+#                 --build-arg DEPLOY_VERSION=v$(date -u +%Y%m%dT%H%M%S)
+
+app = "dcss-wasm-dev"
+primary_region = "fra"
+
+[build]
+  dockerfile = "deploy/Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Dev: fine to fully suspend when idle. Cold-start latency is
+  # acceptable on a test environment.
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
