@@ -232,11 +232,26 @@ dat.wasm-stage: host-rltiles
 	@# `-size +0c` skips zero-byte files defensively (e.g. a stale empty
 	@# dngn.png that slipped past the refresh-loop guard). pngquant 2.x
 	@# returns rc=25 (libpng decode error) on empty inputs.
+	@# --quality=50-80 + --colors 96 is more aggressive than the previous
+	@# 70-90/256 to squeeze the atlases further; alpha edges stay clean
+	@# because pngquant preserves alpha exactly. Combined with the oxipng
+	@# pass below this is the lossless-deflate + tighter-palette stack we
+	@# fall back to since emscripten 5.0.6's sdl2_image port has no webp.
+	@# pngquant 2.x takes ncolors as a positional arg (no --colors flag);
+	@# the leading "96" caps the palette below the 256 default.
 	@find dat.wasm/tiles -name '*.png' -size +0c -print0 | \
 		xargs -0 -n 1 -P 4 sh -c \
-			'pngquant --skip-if-larger --strip --quality=70-90 \
-				--force --ext .png -- "$$0" 2>/dev/null; \
+			'pngquant --skip-if-larger --strip --quality=50-80 \
+				--force --ext .png 96 -- "$$0" 2>/dev/null; \
 			 rc=$$?; [ $$rc -eq 0 ] || [ $$rc -eq 98 ] || [ $$rc -eq 99 ]'
+	@echo "==> Re-packing dat.wasm/tiles/*.png deflate stream with oxipng..."
+	@# oxipng -o max --strip safe rewrites the deflate stream at maximum
+	@# effort with no quality loss. Typical extra saving on already-
+	@# pngquant'd atlases is 5-15%. --strip safe drops metadata chunks
+	@# (tEXt/tIME/etc.) without touching color or alpha. Parallelism via
+	@# oxipng's own -t flag (it is multi-threaded internally per-file).
+	@find dat.wasm/tiles -name '*.png' -size +0c -print0 | \
+		xargs -0 oxipng -o max --strip safe --quiet
 
 # 8. Clean only the tiles-specific outputs; leave ASCII artifacts alone.
 clean-tiles:

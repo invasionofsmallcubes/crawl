@@ -25,6 +25,17 @@ RUN apt-get update && apt-get install -y \
     pngquant \
     && rm -rf /var/lib/apt/lists/*
 
+# 1b. Install oxipng (deflate-only PNG re-pack, run after pngquant in the
+# WASM tiles staging step). Not in apt for Ubuntu 22.04, so fetch the
+# upstream static-musl release for the host architecture.
+ARG OXIPNG_VERSION=10.1.1
+RUN ARCH="$(uname -m)" \
+    && curl -sSL -o /tmp/oxipng.tgz \
+       "https://github.com/oxipng/oxipng/releases/download/v${OXIPNG_VERSION}/oxipng-${OXIPNG_VERSION}-${ARCH}-unknown-linux-musl.tar.gz" \
+    && tar -xzf /tmp/oxipng.tgz -C /tmp \
+    && install -m 0755 "/tmp/oxipng-${OXIPNG_VERSION}-${ARCH}-unknown-linux-musl/oxipng" /usr/local/bin/oxipng \
+    && rm -rf /tmp/oxipng*
+
 # 2. Set up Emscripten SDK (emsdk)
 WORKDIR /opt
 RUN git clone https://github.com/emscripten-core/emsdk.git
